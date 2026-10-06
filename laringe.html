@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador 3D - Laringe Profesional Interactiva</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: sans-serif;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        #menu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            font-family: sans-serif;
+            z-index: 10;
+        }
+        select, button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: none;
+            background: #333;
+            color: white;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-size: 13px;
+        }
+        button {
+            background: #0066cc;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0080ff;
+        }
+        #explode-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(15, 15, 15, 0.9);
+            color: #ffffff;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            font-family: sans-serif;
+            max-width: 280px;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+            z-index: 100;
+        }
+        #tooltip h4 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            color: #4da6ff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 3px;
+        }
+        #tooltip p {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Pasa el ratón para ver funciones. Usa el botón inferior para armar/desarmar.</div>
+    
+    <button id="explode-btn">🧩 Desarmar Laringe (Rompecabezas)</button>
+
+    <div id="menu">
+        <label for="modelSelect">Modelo: </label>
+        <select id="modelSelect">
+            <option value="larynx_with_muscles_and_ligaments.glb">Con músculos y ligamentos</option>
+            <option value="anatomy_of_the_larynx.glb">Anatomía general</option>
+        </select>
+    </div>
+
+    <div id="tooltip">
+        <h4 id="tip-title"></h4>
+        <p id="tip-desc"></p>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        let currentModel = null;
+        let fadingModel = null;
+        let fadeProgress = 1;
+        
+        let isExploded = false;
+        const originalPositions = new Map();
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2(-1000, -1000);
+        let hoveredObject = null;
+        let originalMaterial = null;
+
+        const tooltip = document.getElementById('tooltip');
+        const tipTitle = document.getElementById('tip-title');
+        const tipDesc = document.getElementById('tip-desc');
+        const explodeBtn = document.getElementById('explode-btn');
+
+        // --- DICCIONARIO COMPLETO Y TRADUCIDO AL ESPAÑOL ---
+        const anatomicalData = {
+            "Thryoid_cartilage_Thyroid_Mat_0": { 
+                name: "Cartílago Tiroides", 
+                desc: "El cartílago más grande de la laringe. Forma la estructura frontal y protege las cuerdas vocales." 
+            },
+            "Cricoid_cartilage_Cricoid_0": { 
+                name: "Cartílago Cricoides", 
+                desc: "Anillo base fundamental en forma de sello que sostiene la estructura inferior de la laringe." 
+            },
+            "Trachea_Vocal_Cords_Mat_0": { 
+                name: "Tráquea", 
+                desc: "Tubo conductor del flujo de aire espiratorio hacia la laringe para posibilitar el sonido." 
+            },
+            "Median_Cricothyroid_Ligament_Vocal_Cords_Mat_0": { 
+                name: "Ligamento Cricotiroideo Medio", 
+                desc: "Membrana elástica que conecta el arco cricoideo con el borde inferior del cartílago tiroides." 
+            },
+            "Right_Corniculate_Cartilage_lambert8_0": { 
+                name: "Cartílago Corniculado (de Santorini)", 
+                desc: "Pequeño cartílago elástico ubicado sobre el aritenoides que otorga soporte estructural a los pliegues aritenoepiglóticos." 
+            },
+            "Right_Thyroid_Ligament_Vocal_Cords_Mat_0": { 
+                name: "Membrana Tirohioidea / Cuerdas Vocales (Der.)", 
+                desc: "Estructura fibrosa lateral que conecta el hioides con el cartílago tiroides y protege los pliegues vocales." 
+            },
+            "Hyoid_Hyoid_Mat_0": { 
+                name: "Hueso Hioides", 
+                desc: "Hueso flotante en la base de la lengua que sirve de anclaje para los músculos laríngeos." 
+            },
+            "Left_Thyroid_Membrane_Vocal_Cords_Mat_0": { 
+                name: "Membrana Tirohioidea / Cuerdas Vocales (Izq.)", 
+                desc: "Estructura fibrosa que conecta el hioides y protege los pliegues vocales internos." 
+            },
+            "Right_Thyroid_Membrane_Vocal_Cords_Mat_0": { 
+                name: "Membrana Tirohioidea / Cuerdas Vocales (Der.)", 
+                desc: "Estructura fibrosa que conecta el hioides y protege los pliegues vocales internos." 
+            },
+            "Epiglottis": { 
+                name: "Epiglotis", 
+                desc: "Cartílago en forma de hoja que sella la vía aérea al tragar alimentos." 
+            },
+            "Cricoid_Cartilage": { 
+                name: "Cartílago Cricoides", 
+                desc: "Anillo base fundamental que sostiene la estructura inferior de la laringe." 
+            },
+            "Trachea": { 
+                name: "Tráquea", 
+                desc: "Tubo conductor del flujo de aire espiratorio hacia la laringe." 
+            },
+            "Object_3": { 
+                name: "Músculo Cricotiroideo", 
+                desc: "Tensor principal de las cuerdas vocales para elevar el tono al cantar." 
+            },
+            "Object_5": { 
+                name: "Hueso Hioides", 
+                desc: "Soporte superior para la musculatura laríngea." 
+            },
+            "Object_6": { 
+                name: "Epiglotis", 
+                desc: "Válvula protectora de la vía aérea." 
+            },
+            "Object_7": { 
+                name: "Cartílago Tiroides", 
+                desc: "Escudo protector anterior de la laringe." 
+            },
+            "Object_8": { 
+                name: "Cartílago Cricoides", 
+                desc: "Anillo inferior de base y soporte articular." 
+            },
+            "Object_9": { 
+                name: "Ligamento Cricotiroideo", 
+                desc: "Unión elástica entre cricoides y tiroides." 
+            },
+            "Object_10": { 
+                name: "Músculos Aritenoideos", 
+                desc: "Aproximan o separan los cartílagos aritenoides para abrir o cerrar la glotis." 
+            },
+            "Object_11": { 
+                name: "Tráquea", 
+                desc: "Estructura tubular de conducción aérea." 
+            },
+            "Object_12": { 
+                name: "Membrana Tirohioidea", 
+                desc: "Conexión elástica que permite el movimiento vertical de la laringe." 
+            },
+            "Object_14": {
+                name: "Músculo Cricotiroideo",
+                desc: "Tensor principal de las cuerdas vocales. Al contraerse, estira y alarga los pliegues vocales para elevar el tono."
+            },
+            "Object_18": {
+                name: "Músculo Cricotiroideo",
+                desc: "Tensor principal de las cuerdas vocales. Al contraerse, estira y alarga los pliegues vocales para elevar el tono."
+            },
+            "Object_20": {
+                name: "Músculos Aritenoideos",
+                desc: "Músculos posteriores encargados de aproximar los aritenoides para cerrar la glotis y permitir la fonación."
+            }
+        };
+
+        window.addEventListener('pointermove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            tooltip.style.left = (event.clientX + 15) + 'px';
+            tooltip.style.top = (event.clientY + 15) + 'px';
+        });
+
+        const loader = new GLTFLoader();
+
+        function loadModel(filename) {
+            if (currentModel) {
+                if (fadingModel) scene.remove(fadingModel);
+                fadingModel = currentModel;
+                fadingModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = child.material.clone();
+                        child.material.transparent = true;
+                    }
+                });
+            }
+
+            isExploded = false;
+            explodeBtn.textContent = "🧩 Desarmar Laringe (Rompecabezas)";
+
+            loader.load(
+                filename,
+                function (gltf) {
+                    currentModel = gltf.scene;
+
+                    const box = new THREE.Box3().setFromObject(currentModel);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+
+                    currentModel.position.x -= center.x;
+                    currentModel.position.y -= center.y;
+                    currentModel.position.z -= center.z;
+
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    camera.position.set(0, maxDim * 0.5, maxDim * 2.2);
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+
+                    originalPositions.clear();
+                    currentModel.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = child.material.clone();
+                            child.material.transparent = true;
+                            child.material.opacity = 0;
+                            
+                            originalPositions.set(child.uuid, child.position.clone());
+                        }
+                    });
+
+                    scene.add(currentModel);
+                    fadeProgress = 0;
+                },
+                undefined,
+                function (error) {
+                    console.error('Error al cargar el modelo:', error);
+                }
+            );
+        }
+
+        const selectElement = document.getElementById('modelSelect');
+        loadModel(selectElement.value);
+
+        selectElement.addEventListener('change', (event) => {
+            loadModel(event.target.value);
+            tooltip.style.display = 'none';
+        });
+
+        // Botón para Armar/Desarmar con explosión exagerada (amplificada 30 veces)
+        explodeBtn.addEventListener('click', () => {
+            if (!currentModel || fadeProgress < 1) return;
+            isExploded = !isExploded;
+            explodeBtn.textContent = isExploded ? "📦 Armar Laringe" : "🧩 Desarmar Laringe (Rompecabezas)";
+
+            currentModel.traverse((child) => {
+                if (child.isMesh) {
+                    const origPos = originalPositions.get(child.uuid);
+                    if (!origPos) return;
+
+                    let targetX = origPos.x;
+                    let targetY = origPos.y;
+                    let targetZ = origPos.z;
+
+                    if (isExploded) {
+                        // Multiplicador de expansión exagerado (aprox 30 veces más de separación limpia)
+                        targetX += origPos.x * 30.0;
+                        targetY += origPos.y * 30.0 + (origPos.y >= 0 ? 3.0 : -3.0);
+                        targetZ += origPos.z * 30.0 + 5.0; // Se abren también hacia adelante/atrás
+                    }
+
+                    let t = 0;
+                    const startX = child.position.x;
+                    const startY = child.position.y;
+                    const startZ = child.position.z;
+
+                    function animatePart() {
+                        t += 0.08;
+                        child.position.x = THREE.MathUtils.lerp(startX, targetX, t);
+                        child.position.y = THREE.MathUtils.lerp(startY, targetY, t);
+                        child.position.z = THREE.MathUtils.lerp(startZ, targetZ, t);
+                        if (t < 1) {
+                            requestAnimationFrame(animatePart);
+                        }
+                    }
+                    animatePart();
+                }
+            });
+        });
+
+        window.addEventListener('resize', onWindowResize);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Animación de Transición Suave (Fade In / Fade Out)
+            if (fadeProgress < 1) {
+                fadeProgress += 0.05;
+                if (fadeProgress > 1) fadeProgress = 1;
+
+                if (fadingModel) {
+                    fadingModel.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.opacity = 1 - fadeProgress;
+                        }
+                    });
+                    if (fadeProgress === 1) {
+                        scene.remove(fadingModel);
+                        fadingModel = null;
+                    }
+                }
+
+                if (currentModel) {
+                    currentModel.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.opacity = fadeProgress;
+                        }
+                    });
+                }
+            }
+
+            if (currentModel && fadeProgress === 1) {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(currentModel, true);
+
+                if (intersects.length > 0) {
+                    const hitObject = intersects[0].object;
+
+                    if (hoveredObject !== hitObject) {
+                        if (hoveredObject && originalMaterial) {
+                            hoveredObject.material = originalMaterial;
+                        }
+
+                        hoveredObject = hitObject;
+                        originalMaterial = hoveredObject.material;
+
+                        const highlightMaterial = originalMaterial.clone();
+                        highlightMaterial.transparent = true;
+                        highlightMaterial.opacity = 1;
+                        if (highlightMaterial.color) {
+                            highlightMaterial.color.offsetHSL(0, 0, 0.15);
+                        }
+                        hoveredObject.material = highlightMaterial;
+
+                        const meshName = hoveredObject.name;
+                        const data = anatomicalData[meshName];
+
+                        if (data) {
+                            tipTitle.textContent = data.name;
+                            tipDesc.textContent = data.desc;
+                        } else {
+                            tipTitle.textContent = meshName ? meshName : "Estructura laríngea";
+                            tipDesc.textContent = "Componente anatómico de la laringe involucrado en la fonación o soporte estructural.";
+                        }
+
+                        tooltip.style.display = 'block';
+                    }
+                } else {
+                    if (hoveredObject) {
+                        if (originalMaterial) {
+                            hoveredObject.material = originalMaterial;
+                        }
+                        hoveredObject = null;
+                        originalMaterial = null;
+                        tooltip.style.display = 'none';
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
