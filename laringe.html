@@ -10,7 +10,8 @@
 html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(ellipse at 30% 20%,var(--bg2),var(--bg1) 70%)}
 canvas{display:block;position:absolute;inset:0;touch-action:none}
 .glass{background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px)}
-#hint{position:absolute;top:12px;left:12px;max-width:260px;padding:10px 12px;font-size:13px;color:var(--mute);pointer-events:none}
+#hint.off{display:none}
+#hint{position:absolute;top:62px;left:12px;max-width:260px;padding:10px 12px;font-size:13px;color:var(--mute);pointer-events:none}
 #menu{position:absolute;top:12px;right:12px;padding:10px 12px;font-size:13px;display:grid;gap:8px;z-index:5}
 #menu label{display:flex;gap:6px;align-items:center;cursor:pointer}
 select,button{font:inherit;font-size:13px;color:var(--ink);border-radius:8px;border:1px solid var(--line);background:#2a1d4d;padding:7px 12px;cursor:pointer}
@@ -19,22 +20,28 @@ button.main{background:var(--acc2);border-color:transparent}
 button.main:hover{background:var(--acc)}
 :focus-visible{outline:2px solid var(--tip);outline-offset:2px}
 input[type=range]{accent-color:var(--acc);width:100%}
-#bar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:min(680px,calc(100% - 24px));padding:12px 14px;display:grid;gap:10px;z-index:5}
+#bar{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);width:min(680px,calc(100% - 24px));padding:12px 14px;display:grid;gap:10px;z-index:5}
 #bar .row{display:flex;gap:8px;align-items:center}
 #stepLabel{flex:1;text-align:center;font-size:14px;min-height:20px}
-#info{position:absolute;top:70px;right:12px;width:300px;max-height:calc(100% - 230px);overflow:auto;padding:14px 16px;display:none;z-index:4}
+#info{position:absolute;top:50%;left:12px;transform:translateY(-50%);width:300px;max-height:60%;overflow:auto;padding:14px 16px;display:none;z-index:4}
 #info h3{margin:0 0 2px;font-size:18px}
 #info .cat{font-size:12px;color:var(--mute);margin-bottom:8px}
 #info p{margin:0 0 10px;font-size:14px;line-height:1.5}
 #info .tip{border-left:3px solid var(--tip);padding-left:10px;color:#fbe9b5}
+#info .tip span{font-size:14px;line-height:1.5}
 #info .tip b{display:block;font-size:12px;color:var(--tip);margin-bottom:2px}
 #close{position:absolute;top:8px;right:8px;padding:2px 8px}
 #load{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);pointer-events:none}
-@media(max-width:700px){#hint{display:none}#menu{left:12px;right:12px;grid-template-columns:1fr 1fr}#menu select{grid-column:1/3}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;max-height:34%}}
+#back{position:absolute;top:12px;left:12px;padding:8px 12px;font-size:13px;color:var(--ink);text-decoration:none;z-index:5}
+#back:hover{background:#3b2970}
+#brand{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:12px;letter-spacing:.04em;color:var(--mute);opacity:.75;text-decoration:none;white-space:nowrap;z-index:5}
+#brand:hover{opacity:1;color:var(--ink)}
+@media(max-width:700px){#hint{display:none}#menu{top:12px;left:96px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<a id="back" class="glass" href="index.html" target="_top">← Inicio</a>
 <div id="hint" class="glass">Tocá una estructura para ver qué es y qué significa al cantar. Arrastrá para rotar, pellizcá o usá la rueda para acercar.</div>
 
 <div id="menu" class="glass">
@@ -42,9 +49,9 @@ input[type=range]{accent-color:var(--acc);width:100%}
     <option value="larynx_with_muscles_and_ligaments.glb">Con músculos y ligamentos</option>
     <option value="anatomy_of_the_larynx.glb">Anatomía general</option>
   </select>
-  <label><input type="checkbox" data-cat="car" checked> Huesos y cartílagos</label>
+  <label><input type="checkbox" data-cat="car" checked> Cartílagos</label>
   <label><input type="checkbox" data-cat="mus" checked> Músculos</label>
-  <label><input type="checkbox" data-cat="lig" checked> Ligamentos y membranas</label>
+  <label><input type="checkbox" data-cat="lig" checked> Ligamentos</label>
 </div>
 
 <div id="info" class="glass" role="region" aria-live="polite">
@@ -65,6 +72,7 @@ input[type=range]{accent-color:var(--acc);width:100%}
     <button id="reset">Armar</button>
   </div>
 </div>
+<a id="brand" href="index.html" target="_top">Evelin Tardío · Estudio de Canto</a>
 <div id="load">Cargando modelo…</div>
 
 <script type="importmap">
@@ -107,16 +115,16 @@ const TIPS = [
 
 /* Categoría y orden de despliegue (de afuera hacia adentro) */
 function classify(n){
-  const s = n.toLowerCase();
-  if (s.includes('hioides')) return {rank:0,cat:'car'};
-  if (s.includes('membrana')) return {rank:1,cat:'lig'};
-  if (s.includes('músculo')) return {rank:4,cat:'mus'};
-  if (s.includes('ligamento')) return {rank:5,cat:'lig'};
-  if (s.includes('epiglotis')) return {rank:3,cat:'car'};
-  if (s.includes('corniculado')) return {rank:6,cat:'car'};
-  if (s.includes('cricoides')) return {rank:7,cat:'car'};
-  if (s.includes('tiroides')) return {rank:2,cat:'car'};
-  if (s.includes('tráquea')) return {rank:8,cat:'car'};
+  const s = n.toLowerCase(), has = (...w) => w.some(x => s.includes(x));
+  if (has('membrana','membrane')) return {rank:1,cat:'lig'};
+  if (has('músculo','muscle')) return {rank:4,cat:'mus'};
+  if (has('ligamento','ligament')) return {rank:5,cat:'lig'};
+  if (has('hioides','hyoid')) return {rank:0,cat:'car'};
+  if (has('epiglot')) return {rank:3,cat:'car'};
+  if (has('corniculad','corniculate')) return {rank:6,cat:'car'};
+  if (has('cricoid')) return {rank:7,cat:'car'};
+  if (has('tiroides','thyroid','thryoid')) return {rank:2,cat:'car'};
+  if (has('tráquea','trachea')) return {rank:8,cat:'car'};
   return {rank:4,cat:'car'};
 }
 const RANK_LABEL = ["Hioides","Membrana tirohioidea","Cartílago tiroides","Epiglotis","Músculos","Ligamentos","Cartílago corniculado","Cartílago cricoides","Tráquea"];
@@ -125,8 +133,8 @@ const CAT_LABEL = {car:'Hueso / cartílago', mus:'Músculo', lig:'Ligamento / me
 /* Dirección de separación por rank (sx = lado izquierdo/derecho) */
 const V = (x,y,z) => new THREE.Vector3(x,y,z);
 const DIRS = [
-  ()=>V(0,1,.3), sx=>V(sx*.8,.5,.4), ()=>V(0,.1,1), ()=>V(0,1,.7),
-  sx=>V(sx*1,0,-.6), sx=>V(sx*.6,.2,.8), sx=>V(sx*.3,1,-.8), ()=>V(0,-.6,-1), ()=>V(0,-1,-.2)
+  ()=>V(0,1.5,.2), sx=>V(sx*1.1,.8,0), ()=>V(0,.3,.6), ()=>V(0,.8,-.4),
+  sx=>V(sx*1.2,-.2,-.3), sx=>V(sx*.9,-.3,.4), sx=>V(sx*.6,1.2,-.4), ()=>V(0,-.6,-.6), ()=>V(0,-1.3,0)
 ];
 
 /* ---------- Escena ---------- */
@@ -143,6 +151,7 @@ const key = new THREE.DirectionalLight(0xfff1e0, 2); key.position.set(5,10,7); s
 const fill = new THREE.DirectionalLight(0xb9a0ff, 1); fill.position.set(-6,2,-8); scene.add(fill);
 
 const $ = id => document.getElementById(id);
+const DEBUG = location.search.includes('debug');
 let model = null, pieces = [], groups = [], step = 0, stepMode = false, selected = null, hovered = null;
 let maxDim = 1, focus = new THREE.Vector3();
 const layerOn = {car:true, mus:true, lig:true};
@@ -162,13 +171,13 @@ function loadModel(file){
     box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     maxDim = Math.max(size.x,size.y,size.z);
-    camera.near = maxDim/100; camera.far = maxDim*50; camera.updateProjectionMatrix();
+    camera.near = maxDim*.08; camera.far = maxDim*30; controls.minDistance = maxDim*.4; camera.updateProjectionMatrix();
     camera.position.set(0, maxDim*.3, maxDim*2.6);
     focus.set(0,0,0); controls.target.copy(focus);
 
     model.traverse(m => {
       if (!m.isMesh) return;
-      m.material = m.material.clone(); m.material.transparent = true;
+      m.material = m.material.clone(); m.material.transparent = false; m.material.polygonOffset = true; m.material.polygonOffsetFactor = (pieces.length % 24) * .5; m.material.polygonOffsetUnits = (pieces.length % 24) * 2;
       const data = INFO[m.name];
       const name = data ? data.name : (m.name || 'Estructura laríngea');
       const cl = classify(name);
@@ -176,13 +185,14 @@ function loadModel(file){
       const sx = Math.abs(wc.x) > maxDim*.03 ? Math.sign(wc.x) : 0;
       let dir = DIRS[cl.rank](sx);
       if (sx===0 && cl.rank===4) dir = V(0,0,-1);
-      const worldOff = dir.normalize().multiplyScalar(maxDim*.7);
+      const worldOff = dir.multiplyScalar(maxDim*.55);
       const p0 = m.parent.worldToLocal(wc.clone());
       const p1 = m.parent.worldToLocal(wc.clone().add(worldOff));
       pieces.push({mesh:m, name, desc: data ? data.desc : 'Componente anatómico de la laringe involucrado en la fonación o en el soporte estructural.',
         rank:cl.rank, cat:cl.cat, base:m.position.clone(), delta:p1.sub(p0), cur:0, target:0});
     });
     groups = [...new Set(pieces.map(p => p.rank))].sort((a,b)=>a-b);
+    if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.mesh.name} | ${p.name} | rango ${p.rank} ${p.cat}`).join('\n'); }
     setSlider(0); $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
 }
@@ -211,9 +221,9 @@ document.querySelectorAll('[data-cat]').forEach(cb => cb.addEventListener('chang
 
 /* ---------- Selección y panel ---------- */
 function select(p){
-  selected = p;
+  selected = p; $('hint').classList.toggle('off', !!p);
   if (!p){ $('info').style.display='none'; focus.set(0,0,0); return; }
-  $('iName').textContent = p.name; $('iCat').textContent = CAT_LABEL[p.cat]; $('iDesc').textContent = p.desc;
+  $('iName').textContent = p.name; $('iCat').textContent = CAT_LABEL[p.cat] + (DEBUG ? ' · ' + p.mesh.name : ''); $('iDesc').textContent = p.desc;
   const t = TIPS.find(([re]) => re.test(p.name));
   $('iTip').style.display = t ? 'block' : 'none'; if (t) $('iTipTxt').textContent = t[1];
   $('info').style.display = 'block';
@@ -253,7 +263,7 @@ function animate(){
     const m = p.mesh.material;
     const wantOp = selected && selected !== p ? .12 : 1;
     m.opacity += (wantOp - m.opacity) * .2;
-    m.depthWrite = m.opacity > .95;
+    m.transparent = m.opacity < .99; m.depthWrite = !m.transparent;
     if (m.emissive) m.emissive.setHex(p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
   }
   renderer.render(scene, camera);
