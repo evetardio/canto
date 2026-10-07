@@ -152,16 +152,53 @@ const fill = new THREE.DirectionalLight(0xb9a0ff, 1); fill.position.set(-6,2,-8)
 
 const $ = id => document.getElementById(id);
 const DEBUG = location.search.includes('debug');
+const marked = new Set();
 let model = null, pieces = [], groups = [], step = 0, stepMode = false, selected = null, hovered = null;
 let maxDim = 1, focus = new THREE.Vector3();
 const layerOn = {car:true, mus:true, lig:true};
+
+/* ===== PALETA DE COLORES: editá los hex a gusto ===== */
+const RECOLOR = ['anatomy_of_the_larynx.glb'];   // modelos que usan esta paleta
+const PALETA = {
+  0:'#e9dfc9',   // Hioides (hueso, marfil)
+  1:'#cfc3f2',   // Membrana tirohioidea
+  2:'#a78bfa',   // Cartílago tiroides
+  3:'#e6b3f0',   // Epiglotis
+  4:'#c0496f',   // Músculos
+  5:'#ddd0f7',   // Ligamentos
+  6:'#f3c969',   // Cartílago corniculado (dorado)
+  7:'#7c3aed',   // Cartílago cricoides
+  8:'#d9d2ea',   // Tráquea
+  otro:'#d6cfe6' // Piezas sin identificar
+};
+const PALETA_POR_NOMBRE = {};   // opcional, por pieza: 'Nombre_Interno': '#rrggbb'
+function recolor(mat, cl, raw){
+  const hex = PALETA_POR_NOMBRE[raw] || PALETA[(cl.rank === 4 && cl.cat === 'car') ? 'otro' : cl.rank];
+  if (!hex) return;
+  mat.map = null; mat.vertexColors = false; mat.color.set(hex);
+  if ('roughness' in mat){ mat.roughness = .55; mat.metalness = .05; }
+  mat.needsUpdate = true;
+}
+
+/* ---------- Modo ?debug: lista de piezas marcadas ---------- */
+function renderMarks(){
+  let b = $('mk');
+  if (!b){
+    b = document.createElement('div'); b.id = 'mk';
+    b.style.cssText = 'position:absolute;right:8px;bottom:150px;width:230px;max-height:40%;overflow:auto;padding:8px;font-size:11px;background:#000c;color:#fb923c;z-index:9';
+    b.innerHTML = '<button id="cp" style="margin-bottom:6px">Copiar lista</button><pre id="mkt" style="margin:0;white-space:pre-wrap;user-select:text"></pre>';
+    document.body.append(b);
+    $('cp').onclick = () => navigator.clipboard.writeText([...marked].join('\n')).catch(() => {});
+  }
+  $('mkt').textContent = marked.size ? [...marked].join('\n') : 'Tocá las piezas que quedan pegadas';
+}
 
 /* ---------- Carga ---------- */
 const loader = new GLTFLoader();
 function loadModel(file){
   $('load').textContent = 'Cargando modelo…'; $('load').style.display = 'grid';
   if (model){ scene.remove(model); model = null; }
-  pieces = []; select(null); hovered = null;
+  pieces = []; marked.clear(); select(null); hovered = null;
   loader.load(file, gltf => {
     model = gltf.scene;
     let box = new THREE.Box3().setFromObject(model);
@@ -181,6 +218,7 @@ function loadModel(file){
       const data = INFO[m.name];
       const name = data ? data.name : (m.name || 'Estructura laríngea');
       const cl = classify(name);
+      if (RECOLOR.includes(file)) recolor(m.material, cl, m.name);
       const wc = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
       const sx = Math.abs(wc.x) > maxDim*.03 ? Math.sign(wc.x) : 0;
       let dir = DIRS[cl.rank](sx);
@@ -193,6 +231,7 @@ function loadModel(file){
     });
     groups = [...new Set(pieces.map(p => p.rank))].sort((a,b)=>a-b);
     if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.mesh.name} | ${p.name} | rango ${p.rank} ${p.cat}`).join('\n'); }
+    if (DEBUG) renderMarks();
     setSlider(0); $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
 }
@@ -222,12 +261,13 @@ document.querySelectorAll('[data-cat]').forEach(cb => cb.addEventListener('chang
 /* ---------- Selección y panel ---------- */
 function select(p){
   selected = p; $('hint').classList.toggle('off', !!p);
+  if (DEBUG && p){ marked.has(p.mesh.name) ? marked.delete(p.mesh.name) : marked.add(p.mesh.name); renderMarks(); }
   if (!p){ $('info').style.display='none'; focus.set(0,0,0); return; }
   $('iName').textContent = p.name; $('iCat').textContent = CAT_LABEL[p.cat] + (DEBUG ? ' · ' + p.mesh.name : ''); $('iDesc').textContent = p.desc;
   const t = TIPS.find(([re]) => re.test(p.name));
   $('iTip').style.display = t ? 'block' : 'none'; if (t) $('iTipTxt').textContent = t[1];
   $('info').style.display = 'block';
-  new THREE.Box3().setFromObject(p.mesh).getCenter(focus);
+  if (!DEBUG) new THREE.Box3().setFromObject(p.mesh).getCenter(focus);
 }
 $('close').addEventListener('click', () => select(null));
 
@@ -261,10 +301,10 @@ function animate(){
     p.mesh.position.copy(p.base).addScaledVector(p.delta, p.cur);
     p.mesh.visible = layerOn[p.cat];
     const m = p.mesh.material;
-    const wantOp = selected && selected !== p ? .12 : 1;
+    const wantOp = selected && selected !== p && !DEBUG ? .12 : 1;
     m.opacity += (wantOp - m.opacity) * .2;
     m.transparent = m.opacity < .99; m.depthWrite = !m.transparent;
-    if (m.emissive) m.emissive.setHex(p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
+    if (m.emissive) m.emissive.setHex(DEBUG && marked.has(p.mesh.name) ? 0xff5500 : p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
   }
   renderer.render(scene, camera);
 }
