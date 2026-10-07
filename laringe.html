@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visor 3D de Laringe | Eve Tardío · Estudio de Canto</title>
+<title>Visor 3D de Laringe | Eve Tardío · Vocal Coach</title>
 <style>
 :root{--bg1:#0b0816;--bg2:#1b1233;--panel:rgba(18,13,34,.82);--line:rgba(196,160,255,.22);--ink:#f1eafd;--mute:#b7a8d6;--acc:#a855f7;--acc2:#7c3aed;--tip:#f3c969}
 *{box-sizing:border-box}
@@ -75,7 +75,7 @@ input[type=range]{accent-color:var(--acc);width:100%}
     <button id="reset">Armar</button>
   </div>
 </div>
-<a id="brand" href="index.html" target="_top">Eve Tardío · Estudio de Canto</a>
+<a id="brand" href="index.html" target="_top">Eve Tardío · Vocal Coach</a>
 <div id="load">Cargando modelo…</div>
 
 <script type="importmap">
@@ -401,7 +401,7 @@ function runExport({text, transparent}){
     out = document.createElement('canvas'); out.width = cw; out.height = ch + fh;
     const c = out.getContext('2d'); if (!transparent) bg(c);
     c.drawImage(shot, 0, 0);
-    const tx = 'Eve Tardío · Estudio de Canto';
+    const tx = 'Eve Tardío · Vocal Coach';
     let fs = 26 * u; c.font = `600 ${fs}px ${FONT}`;
     const mw = c.measureText(tx).width;
     if (mw > cw * .9){ fs *= cw * .9 / mw; c.font = `600 ${fs}px ${FONT}`; }
@@ -435,7 +435,7 @@ function runExport({text, transparent}){
     c.drawImage(shot, 0, Math.round((Ht - ch) / 2));
     c.fillStyle = 'rgba(196,160,255,.25)'; c.fillRect(cw, 0, 2 * u, Ht);
     paint(c, cw, true);
-    c.font = `500 ${22 * u}px ${FONT}`; c.fillStyle = '#b7a8d6'; c.fillText('Eve Tardío · Estudio de Canto', cw + pad, Ht - pad * .7);
+    c.font = `500 ${22 * u}px ${FONT}`; c.fillStyle = '#b7a8d6'; c.fillText('Eve Tardío · Vocal Coach', cw + pad, Ht - pad * .7);
   }
   out.toBlob(b => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(b);
