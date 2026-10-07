@@ -32,11 +32,12 @@ input[type=range]{accent-color:var(--acc);width:100%}
 #info .tip b{display:block;font-size:12px;color:var(--tip);margin-bottom:2px}
 #close{position:absolute;top:8px;right:8px;padding:2px 8px}
 #load{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);pointer-events:none}
+.dl{display:flex;gap:6px}.dl button{flex:1;padding:7px 8px}
 #back{position:absolute;top:12px;left:12px;padding:8px 12px;font-size:13px;color:var(--ink);text-decoration:none;z-index:5}
 #back:hover{background:#3b2970}
 #brand{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:12px;letter-spacing:.04em;color:var(--mute);opacity:.75;text-decoration:none;white-space:nowrap;z-index:5}
 #brand:hover{opacity:1;color:var(--ink)}
-@media(max-width:700px){#hint{display:none}#menu{top:12px;left:96px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
+@media(max-width:700px){#hint{display:none}#menu{top:12px;left:96px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select,#menu .dl{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -52,6 +53,8 @@ input[type=range]{accent-color:var(--acc);width:100%}
   <label><input type="checkbox" data-cat="car" checked> Cartílagos</label>
   <label><input type="checkbox" data-cat="mus" checked> Músculos</label>
   <label><input type="checkbox" data-cat="lig" checked> Ligamentos</label>
+  <label><input type="checkbox" id="tr"> PNG sin fondo</label>
+  <div class="dl"><button id="dl0">⬇ PNG</button><button id="dl1">⬇ PNG + texto</button></div>
 </div>
 
 <div id="info" class="glass" role="region" aria-live="polite">
@@ -193,6 +196,58 @@ function renderMarks(){
   $('mkt').textContent = marked.size ? [...marked].join('\n') : 'Tocá las piezas que quedan pegadas';
 }
 
+/* ---------- Islas: separa cada pieza en partes desconectadas ---------- */
+const FILAMENTOS = 'ocultar';      // 'ocultar' o 'mantener': qué hacer con los filamentos al desplegar
+const FILAMENTO_FRACCION = 0.05;   // una isla con menos de este % de los triángulos de su pieza se considera filamento
+function splitIslands(root){
+  const list = [];
+  root.traverse(o => { if (o.isMesh && !o.isSkinnedMesh && !Array.isArray(o.material) && o.geometry.attributes.position) list.push(o); });
+  const comp = ['getX','getY','getZ','getW'];
+  for (const m of list){
+    const g = m.geometry, pos = g.attributes.position, n = pos.count;
+    const ix = g.index ? g.index.array : null, nt = Math.floor((ix ? ix.length : n) / 3);
+    if (nt < 2) continue;
+    g.computeBoundingBox();
+    const step = Math.max(g.boundingBox.getSize(new THREE.Vector3()).length() * 1e-5, 1e-9);
+    const ids = new Map(), weld = new Int32Array(n);
+    for (let i = 0; i < n; i++){
+      const k = Math.round(pos.getX(i)/step) + ',' + Math.round(pos.getY(i)/step) + ',' + Math.round(pos.getZ(i)/step);
+      let w = ids.get(k); if (w === undefined){ w = ids.size; ids.set(k, w); } weld[i] = w;
+    }
+    const par = new Int32Array(ids.size).map((_, i) => i);
+    const find = a => { while (par[a] !== a){ par[a] = par[par[a]]; a = par[a]; } return a; };
+    const v = (t, c) => ix ? ix[t*3 + c] : t*3 + c;
+    for (let t = 0; t < nt; t++){
+      const ra = find(weld[v(t,0)]);
+      par[find(weld[v(t,1)])] = ra;
+      par[find(weld[v(t,2)])] = ra;
+    }
+    const groups = new Map();
+    for (let t = 0; t < nt; t++){ const r = find(weld[v(t,0)]); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(t); }
+    if (groups.size < 2) continue;
+    for (const tris of groups.values()){
+      const remap = new Map(), order = [], newIdx = [];
+      for (const t of tris) for (let c = 0; c < 3; c++){
+        const o = v(t,c); let q = remap.get(o);
+        if (q === undefined){ q = order.length; remap.set(o, q); order.push(o); }
+        newIdx.push(q);
+      }
+      const ng = new THREE.BufferGeometry();
+      for (const [name, att] of Object.entries(g.attributes)){
+        const sz = att.itemSize, arr = new Float32Array(order.length * sz);
+        order.forEach((o, i) => { for (let k = 0; k < sz; k++) arr[i*sz + k] = att[comp[k]](o); });
+        ng.setAttribute(name, new THREE.BufferAttribute(arr, sz));
+      }
+      ng.setIndex(newIdx);
+      const nm = new THREE.Mesh(ng, m.material);
+      nm.name = m.name; nm.position.copy(m.position); nm.quaternion.copy(m.quaternion); nm.scale.copy(m.scale);
+      nm.userData.tris = tris.length; nm.userData.parentTris = nt;
+      m.parent.add(nm);
+    }
+    m.parent.remove(m);
+  }
+}
+
 /* ---------- Carga ---------- */
 const loader = new GLTFLoader();
 function loadModel(file){
@@ -200,7 +255,7 @@ function loadModel(file){
   if (model){ scene.remove(model); model = null; }
   pieces = []; marked.clear(); select(null); hovered = null;
   loader.load(file, gltf => {
-    model = gltf.scene;
+    model = gltf.scene; splitIslands(model);
     let box = new THREE.Box3().setFromObject(model);
     const c = box.getCenter(new THREE.Vector3());
     model.position.sub(c);
@@ -227,10 +282,10 @@ function loadModel(file){
       const p0 = m.parent.worldToLocal(wc.clone());
       const p1 = m.parent.worldToLocal(wc.clone().add(worldOff));
       pieces.push({mesh:m, name, desc: data ? data.desc : 'Componente anatómico de la laringe involucrado en la fonación o en el soporte estructural.',
-        rank:cl.rank, cat:cl.cat, base:m.position.clone(), delta:p1.sub(p0), cur:0, target:0});
+        rank:cl.rank, cat:cl.cat, tris:m.userData.tris, filament: FILAMENTOS === 'ocultar' && !!m.userData.parentTris && m.userData.tris / m.userData.parentTris < FILAMENTO_FRACCION, base:m.position.clone(), delta:p1.sub(p0), cur:0, target:0});
     });
     groups = [...new Set(pieces.map(p => p.rank))].sort((a,b)=>a-b);
-    if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.mesh.name} | ${p.name} | rango ${p.rank} ${p.cat}`).join('\n'); }
+    if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.mesh.name} | ${p.name} | rango ${p.rank} ${p.cat} | ${p.tris || '-'} tri${p.filament ? ' | FILAMENTO' : ''}`).join('\n'); }
     if (DEBUG) renderMarks();
     setSlider(0); $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
@@ -276,7 +331,7 @@ function pick(e){
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(ptr, camera);
-  const vis = pieces.filter(p => layerOn[p.cat]).map(p => p.mesh);
+  const vis = pieces.filter(p => p.mesh.visible).map(p => p.mesh);
   const hit = ray.intersectObjects(vis, false)[0];
   return hit ? pieces.find(p => p.mesh === hit.object) : null;
 }
@@ -289,6 +344,101 @@ renderer.domElement.addEventListener('pointermove', e => { if (e.pointerType==='
 
 addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
+/* ---------- Descargar PNG (alta calidad) ---------- */
+let job = null;
+const FONT = '"Segoe UI", system-ui, -apple-system, sans-serif';
+const slug = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const wrapText = (c, text, maxW) => {
+  const out = []; let line = '';
+  for (const w of text.split(' ')){
+    const t = line ? line + ' ' + w : w;
+    if (c.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+};
+const firstSentence = d => { const t = d.split('. ')[0]; return t.endsWith('.') ? t : t + '.'; };
+
+function runExport({text, transparent}){
+  const cv = renderer.domElement, cw0 = cv.clientWidth, ch0 = cv.clientHeight;
+  const k = Math.min(4, 3000 / Math.max(cw0, ch0)), W = Math.round(cw0 * k), H = Math.round(ch0 * k);
+  /* encuadre automático sobre lo que está visible */
+  camera.updateMatrixWorld();
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  const bx = new THREE.Box3(), vv = new THREE.Vector3();
+  for (const p of pieces){
+    if (!p.mesh.visible) continue;
+    bx.setFromObject(p.mesh); if (bx.isEmpty()) continue;
+    for (let i = 0; i < 8; i++){
+      vv.set(i & 1 ? bx.max.x : bx.min.x, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z).project(camera);
+      x0 = Math.min(x0, vv.x); x1 = Math.max(x1, vv.x); y0 = Math.min(y0, vv.y); y1 = Math.max(y1, vv.y);
+    }
+  }
+  if (x0 > x1) return;
+  const px = x => (x * .5 + .5) * W, py = y => (1 - (y * .5 + .5)) * H;
+  const m0 = .08 * Math.max(px(x1) - px(x0), py(y0) - py(y1));
+  const sx = Math.max(0, Math.floor(px(x0) - m0)), sy = Math.max(0, Math.floor(py(y1) - m0));
+  const ex = Math.min(W, Math.ceil(px(x1) + m0)), ey = Math.min(H, Math.ceil(py(y0) + m0));
+  const cw = ex - sx, ch = ey - sy;
+  if (cw < 2 || ch < 2) return;
+
+  /* render en alta resolución, sin resaltados */
+  const pr = renderer.getPixelRatio();
+  const em = pieces.map(p => p.mesh.material.emissive ? p.mesh.material.emissive.getHex() : 0);
+  pieces.forEach(p => p.mesh.material.emissive && p.mesh.material.emissive.setHex(0));
+  renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+  renderer.render(scene, camera);
+  const shot = document.createElement('canvas'); shot.width = cw; shot.height = ch;
+  shot.getContext('2d').drawImage(cv, sx, sy, cw, ch, 0, 0, cw, ch);
+  renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+  pieces.forEach((p, i) => p.mesh.material.emissive && p.mesh.material.emissive.setHex(em[i]));
+
+  const bg = c => { const g = c.createLinearGradient(0, 0, c.canvas.width, c.canvas.height); g.addColorStop(0, '#1b1233'); g.addColorStop(1, '#0b0816'); c.fillStyle = g; c.fillRect(0, 0, c.canvas.width, c.canvas.height); };
+  const name = selected ? selected.name : 'completa';
+  let out;
+  if (!text){
+    out = document.createElement('canvas'); out.width = cw; out.height = ch;
+    const c = out.getContext('2d'); if (!transparent) bg(c);
+    c.drawImage(shot, 0, 0);
+  } else {
+    const u = Math.max(ch, 1400) / 1000, pw = Math.round(680 * u), pad = 56 * u, tw = pw - 2 * pad;
+    const seen = new Map(); pieces.forEach(p => { if (p.mesh.visible && !seen.has(p.name)) seen.set(p.name, p); });
+    const paint = (c, X, draw) => {
+      let y = pad + 40 * u;
+      const put = (t, size, wt, col, gap) => {
+        c.font = `${wt} ${size * u}px ${FONT}`; c.fillStyle = col;
+        for (const ln of wrapText(c, t, tw)){ if (draw) c.fillText(ln, X + pad, y); y += size * u * 1.35; }
+        y += gap * u;
+      };
+      if (selected){
+        put(selected.name, 46, 700, '#f1eafd', 6); put(CAT_LABEL[selected.cat], 24, 400, '#b7a8d6', 28);
+        put(selected.desc, 30, 400, '#f1eafd', 30);
+        const t = TIPS.find(([re]) => re.test(selected.name));
+        if (t){ put('PARA EL CANTANTE', 22, 700, '#f3c969', 6); put(t[1], 28, 400, '#fbe9b5', 20); }
+      } else {
+        put('Laringe', 46, 700, '#f1eafd', 6); put('Estructuras visibles', 24, 400, '#b7a8d6', 28);
+        [...seen.values()].sort((a, b) => a.rank - b.rank).forEach(p => { put(p.name, 28, 700, '#c4a0ff', 2); put(firstSentence(p.desc), 24, 400, '#e6dcf8', 22); });
+      }
+      return y;
+    };
+    const need = paint(document.createElement('canvas').getContext('2d'), 0, false);
+    const Ht = Math.max(ch, Math.ceil(need + 100 * u));
+    out = document.createElement('canvas'); out.width = cw + pw; out.height = Ht;
+    const c = out.getContext('2d'); bg(c);
+    c.drawImage(shot, 0, Math.round((Ht - ch) / 2));
+    c.fillStyle = 'rgba(196,160,255,.25)'; c.fillRect(cw, 0, 2 * u, Ht);
+    paint(c, cw, true);
+    c.font = `500 ${22 * u}px ${FONT}`; c.fillStyle = '#b7a8d6'; c.fillText('Evelin Tardío · Estudio de Canto', cw + pad, Ht - pad * .7);
+  }
+  out.toBlob(b => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+    a.download = 'laringe-' + slug(name) + (text ? '-con-texto' : '') + '.png';
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }, 'image/png');
+}
+$('dl0').addEventListener('click', () => { hovered = null; job = {text: false, transparent: $('tr').checked}; });
+$('dl1').addEventListener('click', () => { hovered = null; job = {text: true}; });
+
 /* ---------- Bucle ---------- */
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function animate(){
@@ -296,16 +446,18 @@ function animate(){
   controls.target.lerp(focus, .08);
   controls.update();
   const lastRank = stepMode && step>0 ? groups[step-1] : -1;
+  const anyExp = pieces.some(q => q.cur > .03);
   for (const p of pieces){
     p.cur += (p.target - p.cur) * (reduce ? 1 : .1);
     p.mesh.position.copy(p.base).addScaledVector(p.delta, p.cur);
-    p.mesh.visible = layerOn[p.cat];
+    p.mesh.visible = layerOn[p.cat] && !(p.filament && anyExp && !DEBUG);
     const m = p.mesh.material;
     const wantOp = selected && selected !== p && !DEBUG ? .12 : 1;
     m.opacity += (wantOp - m.opacity) * .2;
     m.transparent = m.opacity < .99; m.depthWrite = !m.transparent;
-    if (m.emissive) m.emissive.setHex(DEBUG && marked.has(p.mesh.name) ? 0xff5500 : p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
+    if (m.emissive) m.emissive.setHex(DEBUG && marked.has(p.mesh.name) ? 0xff5500 : DEBUG && p.filament ? 0x007a8a : p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
   }
+  if (job){ const j = job; job = null; try { runExport(j); } catch (e) { console.error(e); } }
   renderer.render(scene, camera);
 }
 animate();
