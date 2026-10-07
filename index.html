@@ -301,4 +301,27 @@ function dibujar(){
   $('#vList').innerHTML = c.clases.map((x, i) => `<button class="item${i === V.i ? ' on' : ''}" data-i="${i}"><span>${s.includes(i) ? '✓' : i + 1}</span>${x.t}</button>`).join('');
 }
 $('#vList').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b){ V.i = +b.dataset.i; V.p = 0; dibujar(); } });
-$('#vNe
+$('#vNext').addEventListener('click', () => { V.i = Math.min(V.i + 1, curso(V.id).clases.length - 1); V.p = 0; dibujar(); });
+$('#vPartes').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b){ V.p = +b.dataset.p; dibujar(); } });
+$('#vSeen').addEventListener('click', () => {
+  const s = new Set(vistas(V.id)); s.has(V.i) ? s.delete(V.i) : s.add(V.i);
+  store.set('seen:' + V.id, JSON.stringify([...s])); dibujar();
+});
+$('#viewer').addEventListener('close', () => { $('#vVideo').innerHTML = ''; refresh(); });
+
+/* Eventos generales */
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-curso]'); if (c) entrar(c.dataset.curso);
+  const x = e.target.closest('[data-close]'); if (x) x.closest('dialog').close();
+});
+
+/* Contacto */
+$('#waClases').href = wa('Hola Eve, quiero info sobre clases de canto.');
+$('#waCuidado').href = wa('Hola Eve, quiero reservar mi lugar en el curso de Cuidado y Salud Vocal de diciembre.');
+CONFIG.instagram ? $('#igBtn').href = CONFIG.instagram : $('#igCard').remove();
+$('#anio').textContent = new Date().getFullYear();
+refresh();
+</script>
+</body>
+</html>
+
