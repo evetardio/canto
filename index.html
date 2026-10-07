@@ -35,6 +35,7 @@ nav a:hover{color:var(--acc)}
 .btn:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(168,85,247,.7)}
 .btn.ghost{background:transparent;border:1px solid rgba(192,132,252,.5);box-shadow:none;padding:.6rem 1.2rem;font-size:.9rem}
 .btn.ghost:hover{background:rgba(192,132,252,.12)}
+.btn.ghost.on{background:rgba(192,132,252,.22);border-color:var(--acc)}
 .btn-app{align-self:flex-start;background:rgba(192,132,252,.1);color:var(--acc);border:1px solid rgba(192,132,252,.3);padding:.6rem 1.4rem;border-radius:6px;text-decoration:none;font-size:.9rem;font-weight:700;cursor:pointer}
 .btn-app:hover{background:var(--acc);color:#000}
 .btn-app.off{background:rgba(255,255,255,.05);color:var(--mute);border-color:transparent;cursor:not-allowed}
@@ -178,6 +179,7 @@ input{background:#0e0e15;border:1px solid var(--line);color:var(--text);border-r
   <div class="vgrid">
     <div>
       <div class="video" id="vVideo"></div>
+      <div class="row" id="vPartes" style="margin-bottom:.8rem"></div>
       <h4 id="vClase"></h4>
       <div class="row"><span id="vPdf"></span><button class="btn ghost" id="vSeen"></button><button class="btn ghost" id="vNext">Siguiente →</button></div>
     </div>
@@ -194,14 +196,26 @@ const CONFIG = {
     { id:'teoria', titulo:'Teoría musical para cantantes',
       desc:'Los fundamentos de la teoría musical aplicados al canto, paso a paso.',
       clave:'teoria2026',                // ← CAMBIAR: clave de este curso
-      clases:[   // yt = código del video de YouTube (lo que va después de v=), pdf = ruta del archivo
-        {t:'Clase 1', yt:'', pdf:''}, {t:'Clase 2', yt:'', pdf:''}, {t:'Clase 3', yt:'', pdf:''}, {t:'Clase 4', yt:'', pdf:''},
-        {t:'Clase 5', yt:'', pdf:''}, {t:'Clase 6', yt:'', pdf:''}, {t:'Clase 7', yt:'', pdf:''}, {t:'Clase 8', yt:'', pdf:''}
+      clases:[   // yt = código del video de YouTube (lo que va después de youtu.be/ o v=), pdf = ruta del archivo
+        {t:'Clase 1', yt:'yA8oKuOiDK4', pdf:''},
+        {t:'Clase 2', yt:'JdhPAWtARgE', pdf:''},
+        {t:'Clase 3', yt:'4fY-47-FQUU', pdf:''},
+        {t:'Clase 4', yt:'8_m2GEPdBOw', pdf:''},
+        {t:'Clase 5', yt:'FkrLUUDxiMU', pdf:''},
+        {t:'Clase 6', yt:'3CEUK5hz2Go', pdf:''},
+        {t:'Clase 7', yt:'BYlHsaZvYgw', pdf:''},
+        {t:'Clase 8', yt:'2TBy75K7VAg', pdf:''},
+        {t:'Clase extra: cómo hacer coros', yt:'GUUqqR8SA0c', pdf:'', extra:true}
       ]},
     { id:'piano', titulo:'Piano para cantantes',
       desc:'Lo esencial del piano para acompañarte, estudiar repertorio y entrenar el oído.',
       clave:'piano2026',                 // ← CAMBIAR
-      clases:[ {t:'Clase 1', yt:'', pdf:''}, {t:'Clase 2', yt:'', pdf:''}, {t:'Clase 3', yt:'', pdf:''}, {t:'Clase 4', yt:'', pdf:''} ]}
+      clases:[   // la clase 1 tiene dos videos: se escriben juntos entre corchetes
+        {t:'Clase 1', yt:['pkTaZ2QEI50','DQuJOb6opXs'], pdf:''},
+        {t:'Clase 2', yt:'EpboFtBWRfk', pdf:''},
+        {t:'Clase 3', yt:'_h-yhNTKc4c', pdf:''},
+        {t:'Clase 4', yt:'L46LtqVV7MM', pdf:''}
+      ]}
   ],
   apps: [  // estado: 'gratis' | 'pronto' | 'candado' (con candado hay que agregar curso:'teoria' o 'piano')
     {t:'Visor 3D de Laringe', d:'Explorá la anatomía laríngea en 3D: cartílagos, músculos y ligamentos, con explicaciones pensadas para cantantes.', href:'laringe.html', estado:'gratis'},
@@ -220,6 +234,7 @@ const store = {
 };
 const wa = msg => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
 const curso = id => CONFIG.cursos.find(c => c.id === id);
+const txtClases = c => { const e = c.clases.filter(x => x.extra).length; return `${c.clases.length - e} clases` + (e ? ` + ${e} extra` : ''); };
 const abierto = id => store.get('ok:' + id) === '1';
 const vistas = id => { try { return JSON.parse(store.get('seen:' + id) || '[]'); } catch (e) { return []; } };
 
@@ -239,7 +254,7 @@ function renderApps(){
 function renderCursos(){
   $('#cursosGrid').innerHTML = CONFIG.cursos.map(c => {
     const n = c.clases.length, v = vistas(c.id).length, ok = abierto(c.id);
-    return `<article class="card reveal"><div><span class="tag ${ok ? 'free' : 'lock'}">${ok ? 'Acceso activo' : '🔒 Con clave'}</span><h4>${c.titulo}</h4><p>${c.desc}</p><p class="meta" style="margin-top:.6rem">${n} clases · video + material en PDF</p>${ok ? `<div class="bar"><i style="width:${v / n * 100}%"></i></div><p class="meta">${v}/${n} clases vistas</p>` : ''}</div><button class="btn" data-curso="${c.id}">${ok ? '▶ Continuar curso' : 'Entrar al curso'}</button></article>`;
+    return `<article class="card reveal"><div><span class="tag ${ok ? 'free' : 'lock'}">${ok ? 'Acceso activo' : '🔒 Con clave'}</span><h4>${c.titulo}</h4><p>${c.desc}</p><p class="meta" style="margin-top:.6rem">${txtClases(c)} · video + material en PDF</p>${ok ? `<div class="bar"><i style="width:${v / n * 100}%"></i></div><p class="meta">${v}/${n} clases vistas</p>` : ''}</div><button class="btn" data-curso="${c.id}">${ok ? '▶ Continuar curso' : 'Entrar al curso'}</button></article>`;
   }).join('');
 }
 function refresh(){
@@ -265,44 +280,25 @@ $('#loginForm').addEventListener('submit', e => {
 $('#salir').addEventListener('click', () => { CONFIG.cursos.forEach(c => store.del('ok:' + c.id)); refresh(); });
 
 /* Visor de clases */
-const V = {id:null, i:0};
+const V = {id:null, i:0, p:0};
 function abrirVisor(id){
   const c = curso(id), s = vistas(id);
-  V.id = id; V.i = Math.min(c.clases.length - 1, s.length ? Math.max(...s) + 1 : 0);
+  V.id = id; V.p = 0; V.i = Math.min(c.clases.length - 1, s.length ? Math.max(...s) + 1 : 0);
   dibujar(); $('#viewer').showModal();
 }
 function dibujar(){
   const c = curso(V.id), k = c.clases[V.i], s = vistas(V.id), vista = s.includes(V.i);
   $('#vTitle').textContent = c.titulo;
   $('#vProg').textContent = `${s.length}/${c.clases.length} clases vistas`;
-  $('#vVideo').innerHTML = k.yt
-    ? `<iframe src="https://www.youtube-nocookie.com/embed/${k.yt}?rel=0" title="${k.t}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`
+  const ids = [].concat(k.yt || []).filter(Boolean); V.p = Math.min(V.p, Math.max(0, ids.length - 1));
+  $('#vVideo').innerHTML = ids.length
+    ? `<iframe src="https://www.youtube-nocookie.com/embed/${ids[V.p]}?rel=0" title="${k.t}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`
     : '<p>🎬 Esta clase se publica muy pronto.</p>';
+  $('#vPartes').innerHTML = ids.length > 1 ? ids.map((_, i) => `<button class="btn ghost${i === V.p ? ' on' : ''}" data-p="${i}">Parte ${i + 1}</button>`).join('') : '';
   $('#vClase').textContent = k.t;
   $('#vPdf').innerHTML = k.pdf ? `<a class="btn" href="${k.pdf}" download>⬇ Descargar material (PDF)</a>` : '<span class="meta">Material en PDF próximamente.</span>';
   $('#vSeen').textContent = vista ? '✓ Vista (quitar)' : 'Marcar como vista';
   $('#vList').innerHTML = c.clases.map((x, i) => `<button class="item${i === V.i ? ' on' : ''}" data-i="${i}"><span>${s.includes(i) ? '✓' : i + 1}</span>${x.t}</button>`).join('');
 }
-$('#vList').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b){ V.i = +b.dataset.i; dibujar(); } });
-$('#vNext').addEventListener('click', () => { V.i = Math.min(V.i + 1, curso(V.id).clases.length - 1); dibujar(); });
-$('#vSeen').addEventListener('click', () => {
-  const s = new Set(vistas(V.id)); s.has(V.i) ? s.delete(V.i) : s.add(V.i);
-  store.set('seen:' + V.id, JSON.stringify([...s])); dibujar();
-});
-$('#viewer').addEventListener('close', () => { $('#vVideo').innerHTML = ''; refresh(); });
-
-/* Eventos generales */
-document.addEventListener('click', e => {
-  const c = e.target.closest('[data-curso]'); if (c) entrar(c.dataset.curso);
-  const x = e.target.closest('[data-close]'); if (x) x.closest('dialog').close();
-});
-
-/* Contacto */
-$('#waClases').href = wa('Hola Eve, quiero info sobre clases de canto.');
-$('#waCuidado').href = wa('Hola Eve, quiero reservar mi lugar en el curso de Cuidado y Salud Vocal de diciembre.');
-CONFIG.instagram ? $('#igBtn').href = CONFIG.instagram : $('#igCard').remove();
-$('#anio').textContent = new Date().getFullYear();
-refresh();
-</script>
-</body>
-</html>
+$('#vList').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b){ V.i = +b.dataset.i; V.p = 0; dibujar(); } });
+$('#vNe
