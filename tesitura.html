@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de Tesitura | Eve Tardío</title>
+<meta name="theme-color" content="#0b0b0f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0f;--card:#16161f;--acc:#c084fc;--text:#f3f4f6;--mute:#9ca3af;--line:rgba(192,132,252,.15)}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Oxanium','Segoe UI',Tahoma,sans-serif}
+body{background:radial-gradient(circle at 70% 0%,#1e1b4b 0%,var(--bg) 60%) fixed;color:var(--text);line-height:1.6;min-height:100vh}
+a{color:var(--acc);text-decoration:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;border-bottom:1px solid var(--line)}
+header h1{font-size:1.2rem;text-shadow:0 0 12px rgba(192,132,252,.6)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1.2rem;display:grid;gap:1.4rem}
+h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.3}
+.sub{color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.6rem;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.btn{background:linear-gradient(135deg,#a855f7,#9333ea);color:#fff;padding:.75rem 1.6rem;border:0;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:700;box-shadow:0 4px 20px rgba(168,85,247,.4)}
+.btn.ghost{background:transparent;border:1px solid rgba(192,132,252,.5);box-shadow:none}
+.row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center}
+.live{text-align:center}
+#nota{font-size:5rem;font-weight:800;line-height:1.1;min-height:1.1em}
+#hz{color:var(--mute)}
+.afin{position:relative;height:10px;background:rgba(255,255,255,.08);border-radius:9px;margin:1rem auto .3rem;max-width:420px}
+.afin::after{content:'';position:absolute;left:50%;top:-4px;width:2px;height:18px;background:rgba(255,255,255,.35)}
+#aguja{position:absolute;top:-4px;left:50%;width:6px;height:18px;border-radius:3px;background:var(--acc);transform:translateX(-50%);transition:left .08s}
+.rango{display:grid;grid-template-columns:1fr 1fr;gap:1rem;text-align:center}
+.rango b{display:block;font-size:2.2rem;color:var(--acc)}
+.teclas{display:flex;height:54px;gap:1px;margin:1rem 0 .4rem}
+.teclas i{flex:1;background:rgba(255,255,255,.07);border-radius:2px}
+.teclas i.n{background:rgba(255,255,255,.03)}
+.teclas i.in{background:rgba(192,132,252,.55)}
+.teclas i.now{background:#fff;box-shadow:0 0 10px #fff}
+.escala{display:flex;justify-content:space-between;font-size:.75rem;color:var(--mute)}
+#tipo{font-size:1.8rem;font-weight:700}
+.meta{font-size:.85rem;color:var(--mute)}
+.err{color:#fca5a5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Eve Tardío | Vocal Coach</h1>
+  <a href="index.html#apps">← Volver a las apps</a>
+</header>
+
+<main>
+  <div>
+    <h2>Analizador de Tesitura</h2>
+    <p class="sub">Cantá una escala suave, de tu nota más grave a la más aguda. La app escucha tu voz, registra tus notas extremas y orienta sobre tu tipo de voz.</p>
+  </div>
+
+  <div class="card live">
+    <div class="row" style="justify-content:center;margin-bottom:1rem">
+      <button class="btn" id="go">🎤 Empezar a escuchar</button>
+      <button class="btn ghost" id="reset">Reiniciar rango</button>
+    </div>
+    <div id="nota">–</div>
+    <div id="hz">Esperando tu voz…</div>
+    <div class="afin"><div id="aguja"></div></div>
+    <p class="meta">Centrado = afinado · izquierda = grave · derecha = agudo</p>
+    <p class="meta err" id="err" role="alert"></p>
+  </div>
+
+  <div class="card">
+    <div class="rango">
+      <div><span class="meta">Nota más grave</span><b id="lo">–</b></div>
+      <div><span class="meta">Nota más aguda</span><b id="hi">–</b></div>
+    </div>
+    <div class="teclas" id="teclas" aria-hidden="true"></div>
+    <div class="escala"><span>Do2</span><span>Do3</span><span>Do4</span><span>Do5</span><span>Do6</span></div>
+    <p class="meta" id="amplitud" style="margin-top:.8rem"></p>
+  </div>
+
+  <div class="card">
+    <span class="meta">Tipo de voz orientativo</span>
+    <div id="tipo">Cantá un rango de al menos una octava</div>
+    <p class="meta" id="tipoInfo"></p>
+    <p class="meta" style="margin-top:1rem">Es una herramienta de orientación: la clasificación vocal real depende también del timbre, las zonas de pasaje y la comodidad. Una profesora de canto puede ayudarte a confirmarla.</p>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const NOMBRES = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+const nombre = m => NOMBRES[m % 12] + (Math.floor(m / 12) - 1);
+const MIN = 36, MAX = 84;   // Do2 a Do6
+const TIPOS = [   // rangos típicos (MIDI)
+  ['Bajo', 40, 64], ['Barítono', 45, 69], ['Tenor', 48, 72],
+  ['Contralto', 53, 77], ['Mezzosoprano', 57, 81], ['Soprano', 60, 84]
+];
+
+/* Teclado visual */
+const teclas = $('#teclas');
+for (let m = MIN; m <= MAX; m++){ const i = document.createElement('i'); if ([1,3,6,8,10].includes(m % 12)) i.className = 'n'; i.title = nombre(m); teclas.append(i); }
+
+let lo = null, hi = null, actual = null;
+function pintar(){
+  [...teclas.children].forEach((el, k) => {
+    const m = MIN + k, dentro = lo !== null && m >= lo && m <= hi;
+    el.classList.toggle('in', dentro);
+    el.classList.toggle('now', m === actual);
+  });
+  $('#lo').textContent = lo === null ? '–' : nombre(lo);
+  $('#hi').textContent = hi === null ? '–' : nombre(hi);
+  if (lo === null){ $('#amplitud').textContent = ''; return; }
+  const st = hi - lo;
+  $('#amplitud').textContent = `Tu rango: ${st} semitonos (≈ ${(st / 12).toFixed(1)} octavas).`;
+  if (st < 12){ $('#tipo').textContent = 'Cantá un rango de al menos una octava'; $('#tipoInfo').textContent = ''; return; }
+  let mejor = null, mejorP = -1;
+  TIPOS.forEach(([n, a, b]) => {
+    const inter = Math.max(0, Math.min(hi, b) - Math.max(lo, a)), union = Math.max(hi, b) - Math.min(lo, a);
+    const p = inter / union; if (p > mejorP){ mejorP = p; mejor = [n, a, b]; }
+  });
+  $('#tipo').textContent = mejor[0];
+  $('#tipoInfo').textContent = `Rango típico: ${nombre(mejor[1])} a ${nombre(mejor[2])}.`;
+}
+
+/* Detección de tono (NSDF tipo McLeod) */
+function detectar(buf, sr){
+  const N = buf.length; let rms = 0;
+  for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
+  if (Math.sqrt(rms / N) < 0.012) return null;
+  const minL = Math.floor(sr / 1100), maxL = Math.min(Math.floor(sr / 70), N >> 1);
+  const nsdf = new Float32Array(maxL + 1);
+  for (let l = minL - 1; l <= maxL; l++){
+    let acf = 0, m = 0;
+    for (let i = 0; i < N - l; i++){ acf += buf[i] * buf[i + l]; m += buf[i] * buf[i] + buf[i + l] * buf[i + l]; }
+    nsdf[l] = m ? 2 * acf / m : 0;
+  }
+  let max = 0; for (let l = minL; l <= maxL; l++) if (nsdf[l] > max) max = nsdf[l];
+  if (max < 0.85) return null;
+  for (let l = minL; l < maxL; l++){
+    if (nsdf[l] > 0.9 * max && nsdf[l] >= nsdf[l - 1] && nsdf[l] >= nsdf[l + 1]){
+      const a = nsdf[l - 1], b = nsdf[l], c = nsdf[l + 1], d = a - 2 * b + c;
+      const p = d ? l + 0.5 * (a - c) / d : l;
+      return sr / p;
+    }
+  }
+  return null;
+}
+
+/* Audio */
+let ctx, an, stream, raf, buf, hist = [];
+async function iniciar(){
+  $('#err').textContent = '';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+  } catch (e){
+    $('#err').textContent = 'No pude acceder al micrófono. Permití el acceso en el navegador y probá de nuevo.';
+    return;
+  }
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  an = ctx.createAnalyser(); an.fftSize = 4096;
+  ctx.createMediaStreamSource(stream).connect(an);
+  buf = new Float32Array(an.fftSize);
+  $('#go').textContent = '⏹ Detener';
+  loop();
+}
+function detener(){
+  cancelAnimationFrame(raf);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (ctx) ctx.close();
+  ctx = null; actual = null; hist = [];
+  $('#go').textContent = '🎤 Empezar a escuchar';
+  $('#nota').textContent = '–'; $('#hz').textContent = 'Detenido.'; $('#aguja').style.left = '50%';
+  pintar();
+}
+function loop(){
+  an.getFloatTimeDomainData(buf);
+  const f = detectar(buf, ctx.sampleRate);
+  if (f && f > 60 && f < 1200){
+    const midiF = 69 + 12 * Math.log2(f / 440), m = Math.round(midiF), cents = (midiF - m) * 100;
+    $('#nota').textContent = nombre(m);
+    $('#hz').textContent = `${f.toFixed(1)} Hz · ${cents >= 0 ? '+' : ''}${cents.toFixed(0)} cents`;
+    $('#aguja').style.left = (50 + Math.max(-50, Math.min(50, cents))) + '%';
+    actual = (m >= MIN && m <= MAX) ? m : null;
+    hist.push(m); if (hist.length > 6) hist.shift();
+    /* una nota cuenta solo si se mantiene estable unos instantes (evita saltos de octava y ruidos) */
+    if (hist.length === 6 && Math.max(...hist) - Math.min(...hist) === 0 && m >= MIN && m <= MAX){
+      if (lo === null){ lo = hi = m; }
+      else { if (m < lo) lo = m; if (m > hi) hi = m; }
+    }
+  } else {
+    hist = []; actual = null;
+    $('#nota').textContent = '–'; $('#hz').textContent = 'Esperando tu voz…'; $('#aguja').style.left = '50%';
+  }
+  pintar();
+  raf = requestAnimationFrame(loop);
+}
+$('#go').addEventListener('click', () => ctx ? detener() : iniciar());
+$('#reset').addEventListener('click', () => { lo = hi = null; $('#tipo').textContent = 'Cantá un rango de al menos una octava'; $('#tipoInfo').textContent = ''; pintar(); });
+pintar();
+</script>
+</body>
+</html>
