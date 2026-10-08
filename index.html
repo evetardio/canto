@@ -6,9 +6,12 @@
 <title>Eve Tardío | Vocal Coach</title>
 <meta name="description" content="Clases de canto, cursos de teoría y piano para cantantes y apps interactivas de técnica vocal, con Eve Tardío.">
 <meta name="theme-color" content="#0b0b0f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0b0b0f;--card:#16161f;--acc:#c084fc;--glow:rgba(192,132,252,.35);--text:#f3f4f6;--mute:#9ca3af;--line:rgba(192,132,252,.15)}
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Oxanium','Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
 html{scroll-behavior:smooth;scroll-padding-top:90px}
 body{background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
 a{color:inherit}
@@ -352,7 +355,8 @@ document.addEventListener('click', e => {
 $('#mailTxt').href = 'mailto:' + CONFIG.email; $('#mailTxt').textContent = CONFIG.email;
 if (CONFIG.instagram) $('#igBtn').href = CONFIG.instagram; else $('#igBtn').remove();
 
-/* Formulario: se envía desde la misma página (servicio FormSubmit) */
+/* Formulario: se envía desde la misma página (servicio FormSubmit).
+   Si falla, el motivo exacto queda en la consola del navegador (F12 → Console). */
 $('#cform').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('#fBtn'), est = $('#fEstado'), asunto = $('#fAsunto').value;
@@ -363,10 +367,15 @@ $('#cform').addEventListener('submit', async e => {
       body: JSON.stringify({name: $('#fNombre').value, email: $('#fEmail').value, motivo: asunto, message: $('#fMsg').value,
         _honey: $('#fHoney').value, _subject: 'Consulta web: ' + asunto, _template: 'table', _captcha: 'false'})
     });
-    const d = await r.json();
-    if (!r.ok || d.success === false || d.success === 'false') throw new Error('envio');
+    let d = {};
+    try { d = await r.json(); } catch (_) {}
+    if (!r.ok || d.success === false || d.success === 'false'){
+      console.error('FormSubmit respondió:', r.status, d);
+      throw new Error('envio');
+    }
     $('#cform').reset(); est.className = 'meta ok'; est.textContent = '¡Mensaje enviado! Eve te responde por correo.';
   } catch (err) {
+    console.error('Error al enviar el formulario:', err);
     est.className = 'meta err';
     est.innerHTML = `No se pudo enviar. Escribile directamente a <a href="mailto:${CONFIG.email}" style="color:var(--acc)">${CONFIG.email}</a>.`;
   }
@@ -397,3 +406,4 @@ refresh();
 </script>
 </body>
 </html>
+
