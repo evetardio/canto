@@ -103,6 +103,7 @@ label{font-size:.85rem;color:var(--mute)}
 @media(max-width:760px){header{padding:.8rem 1rem}nav{gap:1rem;width:100%;overflow-x:auto;white-space:nowrap;padding-bottom:.2rem}.hero{padding:4.5rem 1.2rem}.hero h2{font-size:2.1rem}.vgrid{grid-template-columns:1fr}.list{max-height:none}.feature{padding:1.6rem}}
 @media(prefers-reduced-motion:reduce){.hero::before,.ondas g{animation:none}.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 </style>
+<script src="analytics.js"></script>
 </head>
 <body>
 
@@ -184,7 +185,7 @@ label{font-size:.85rem;color:var(--mute)}
 
 </main>
 
-<footer>© <span id="anio"></span> Eve Tardío · Vocal Coach</footer>
+<footer>© <span id="anio"></span> Eve Tardío · Vocal Coach<br><span style="font-size:.8rem">Este sitio usa analítica anónima para conocer cuánta gente lo visita y qué herramientas se usan.</span></footer>
 
 <dialog id="login">
   <form id="loginForm">
@@ -282,7 +283,7 @@ function renderApps(){
     const tag = a.estado === 'pronto' ? ['Próximamente','soon'] : lock ? ['🔒 Con clave','lock'] : a.estado === 'gratis' ? ['Gratis','free'] : ['Desbloqueada','free'];
     const btn = a.estado === 'pronto' ? '<span class="btn-app off">Próximamente</span>'
       : lock ? `<button class="btn-app" data-curso="${a.curso}">Desbloquear 🔒</button>`
-      : `<a class="btn-app" href="${a.href}">Abrir →</a>`;
+      : `<a class="btn-app" href="${a.href}" data-app="${a.t}">Abrir →</a>`;
     return `<article class="card reveal${a.estado === 'pronto' ? ' soon' : ''}"><div><span class="tag ${tag[1]}">${tag[0]}</span><h4>${a.t}</h4><p>${a.d}</p></div>${btn}</article>`;
   }).join('');
 }
@@ -309,7 +310,7 @@ function abrirLogin(id){
 $('#loginForm').addEventListener('submit', e => {
   e.preventDefault();
   const c = curso(loginPara);
-  if ($('#clave').value.trim() === c.clave){ store.set('ok:' + c.id, c.clave); $('#login').close(); refresh(); abrirVisor(c.id); }
+  if ($('#clave').value.trim() === c.clave){ store.set('ok:' + c.id, c.clave); window.track?.('acceso_curso', {curso: c.id}); $('#login').close(); refresh(); abrirVisor(c.id); }
   else $('#loginErr').textContent = 'Clave incorrecta. Revisá que esté bien escrita.';
 });
 $('#salir').addEventListener('click', () => { CONFIG.cursos.forEach(c => store.del('ok:' + c.id)); refresh(); });
@@ -319,10 +320,11 @@ const V = {id:null, i:0, p:0};
 function abrirVisor(id){
   const c = curso(id), s = vistas(id);
   V.id = id; V.p = 0; V.i = Math.min(c.clases.length - 1, s.length ? Math.max(...s) + 1 : 0);
-  dibujar(); $('#viewer').showModal();
+  V.last = null; window.track?.('abrir_curso', {curso: id}); dibujar(); $('#viewer').showModal();
 }
 function dibujar(){
   const c = curso(V.id), k = c.clases[V.i], s = vistas(V.id), vista = s.includes(V.i);
+  const kk = V.id + ':' + V.i; if (V.last !== kk){ V.last = kk; window.track?.('ver_clase', {curso: V.id, clase: k.t}); }
   $('#vTitle').textContent = c.titulo;
   $('#vProg').textContent = `${s.length}/${c.clases.length} clases vistas`;
   const ids = [].concat(k.yt || []).filter(Boolean); V.p = Math.min(V.p, Math.max(0, ids.length - 1));
@@ -348,7 +350,8 @@ $('#viewer').addEventListener('close', () => { $('#vVideo').innerHTML = ''; refr
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-curso]'); if (c) entrar(c.dataset.curso);
   const x = e.target.closest('[data-close]'); if (x) x.closest('dialog').close();
-  const q = e.target.closest('[data-consulta]'); if (q) consulta(q.dataset.consulta, q.dataset.msg || '');
+  const q = e.target.closest('[data-consulta]'); if (q){ window.track?.('click_consulta', {tipo: q.dataset.consulta}); consulta(q.dataset.consulta, q.dataset.msg || ''); }
+  const ap = e.target.closest('[data-app]'); if (ap) window.track?.('abrir_app', {app: ap.dataset.app});
 });
 
 /* Contacto */
@@ -373,7 +376,7 @@ $('#cform').addEventListener('submit', async e => {
       console.error('FormSubmit respondió:', r.status, d);
       throw new Error('envio');
     }
-    $('#cform').reset(); est.className = 'meta ok'; est.textContent = '¡Mensaje enviado! Eve te responde por correo.';
+    window.track?.('enviar_consulta', {motivo: asunto}); $('#cform').reset(); est.className = 'meta ok'; est.textContent = '¡Mensaje enviado! Eve te responde por correo.';
   } catch (err) {
     console.error('Error al enviar el formulario:', err);
     est.className = 'meta err';
