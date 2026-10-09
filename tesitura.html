@@ -52,6 +52,7 @@ h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-bac
 .meta{font-size:.85rem;color:var(--mute)}
 .err{color:#fca5a5}
 </style>
+<script src="analytics.js"></script>
 </head>
 <body>
 <header>
@@ -127,6 +128,8 @@ const segs = [];
     const tt = nodo('text', {x:tx, y:ty + 4, 'text-anchor':'middle', class:'segTxt'}); tt.textContent = NOM[i]; g.append(tt);
   });
 })();
+let ultimo = null;
+function enviarResultado(){ if (ultimo){ window.track?.('tesitura_resultado', ultimo); ultimo = null; } }
 function pintarArco(){
   const sc = TIPOS.map(([n, a, b]) => {
     if (lo === null) return 0;
@@ -134,6 +137,7 @@ function pintarArco(){
     return inter / un;
   });
   const mx = Math.max(...sc), st = lo === null ? 0 : hi - lo, best = st >= 12 ? sc.indexOf(mx) : -1;
+  ultimo = best >= 0 ? {tipo: TIPOS[best][0], semitonos: st} : null;
   segs.forEach((p, i) => {
     let o = .2;
     if (lo !== null && mx > 0) o = .2 + .4 * sc[i] / mx;
@@ -225,9 +229,11 @@ async function iniciar(){
   ctx.createMediaStreamSource(stream).connect(an);
   buf = new Float32Array(an.fftSize);
   $('#go').textContent = 'Detener';
+  window.track?.('tesitura_iniciar');
   loop();
 }
 function detener(){
+  enviarResultado();
   cancelAnimationFrame(raf);
   if (stream) stream.getTracks().forEach(t => t.stop());
   if (ctx) ctx.close();
@@ -261,6 +267,7 @@ function loop(){
 $('#go').addEventListener('click', () => ctx ? detener() : iniciar());
 $('#reset').addEventListener('click', () => { lo = hi = null; $('#tipo').textContent = 'Cantá un rango de al menos una octava'; $('#tipoInfo').textContent = ''; pintar(); });
 pintar();
+addEventListener('pagehide', () => { if (ctx) enviarResultado(); });
 </script>
 </body>
 </html>
