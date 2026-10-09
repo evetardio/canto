@@ -20,8 +20,10 @@ main{max-width:860px;margin:2.5rem auto;padding:0 1.2rem;display:grid;gap:1.4rem
 h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.3}
 .sub{color:var(--mute)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.6rem;box-shadow:0 8px 30px rgba(0,0,0,.5)}
-.btn{background:linear-gradient(135deg,#a855f7,#9333ea);color:#fff;padding:.75rem 1.6rem;border:0;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:700;box-shadow:0 4px 20px rgba(168,85,247,.4)}
-.btn.ghost{background:transparent;border:1px solid rgba(192,132,252,.5);box-shadow:none}
+.btn{color:#fff;padding:.65rem 1.6rem;border:1.5px solid transparent;border-radius:99px;font-size:.95rem;cursor:pointer;font-weight:600;letter-spacing:.03em;background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(90deg,#14b8a6,#3b82f6,#a855f7,#f472b6) border-box;transition:box-shadow .2s}
+.btn:hover{box-shadow:0 0 18px rgba(168,85,247,.35)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+.btn.ghost:hover{box-shadow:none;color:var(--text);border-color:rgba(192,132,252,.5)}
 .row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center}
 .live{text-align:center}
 #nota{font-size:5rem;font-weight:800;line-height:1.1;min-height:1.1em}
@@ -29,8 +31,16 @@ h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-bac
 .afin{position:relative;height:10px;background:rgba(255,255,255,.08);border-radius:9px;margin:1rem auto .3rem;max-width:420px}
 .afin::after{content:'';position:absolute;left:50%;top:-4px;width:2px;height:18px;background:rgba(255,255,255,.35)}
 #aguja{position:absolute;top:-4px;left:50%;width:6px;height:18px;border-radius:3px;background:var(--acc);transform:translateX(-50%);transition:left .08s}
-.rango{display:grid;grid-template-columns:1fr 1fr;gap:1rem;text-align:center}
-.rango b{display:block;font-size:2.2rem;color:var(--acc)}
+.arco{position:relative;max-width:520px;margin:0 auto}
+.arco svg{display:block;width:100%;height:auto;overflow:visible}
+.seg{opacity:.2;transition:opacity .2s,filter .2s}
+.segTxt{fill:#fff;font-size:12px;font-weight:700;opacity:.9;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:2.5px;pointer-events:none}
+.arcoCentro{position:absolute;left:50%;bottom:3%;transform:translateX(-50%);width:46%;text-align:center;line-height:1.25}
+#arcoTipo{font-size:clamp(1.1rem,4.5vw,1.7rem);font-weight:800;transition:color .2s}
+#arcoInfo{font-size:.75rem;color:var(--mute)}
+.rango{display:flex;justify-content:space-between;max-width:520px;margin:.5rem auto 0;text-align:center}
+.rango>div{width:20%}
+.rango b{display:block;font-size:1.6rem;color:var(--acc)}
 .piano{position:relative;height:150px;margin:1rem 0 .4rem;display:flex}
 .blanca{flex:1;background:#e9e7f0;border:1px solid #0b0b0f;border-radius:0 0 5px 5px;display:flex;align-items:flex-end;justify-content:center;font-size:.62rem;font-weight:600;color:#6b6780;padding-bottom:5px;transition:background .08s}
 .negra{position:absolute;top:0;height:60%;background:#14141c;border:1px solid #000;border-radius:0 0 4px 4px;z-index:2;transition:background .08s}
@@ -46,7 +56,7 @@ h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-bac
 <body>
 <header>
   <h1>Eve Tardío | Vocal Coach</h1>
-  <a href="index.html#apps">← Volver a las apps</a>
+  <a href="index.html">← Inicio</a>
 </header>
 
 <main>
@@ -57,7 +67,7 @@ h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-bac
 
   <div class="card live">
     <div class="row" style="justify-content:center;margin-bottom:1rem">
-      <button class="btn" id="go">🎤 Empezar a escuchar</button>
+      <button class="btn" id="go">Empezar a escuchar</button>
       <button class="btn ghost" id="reset">Reiniciar rango</button>
     </div>
     <div id="nota">–</div>
@@ -68,6 +78,10 @@ h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-bac
   </div>
 
   <div class="card">
+    <div class="arco">
+      <svg viewBox="0 0 400 205" role="img" aria-label="Espectro de tipos de voz"><g id="arcoSegs"></g></svg>
+      <div class="arcoCentro"><div id="arcoTipo">Tu cuerda</div><div id="arcoInfo">Cantá para iluminar el espectro</div></div>
+    </div>
     <div class="rango">
       <div><span class="meta">Nota más grave</span><b id="lo">–</b></div>
       <div><span class="meta">Nota más aguda</span><b id="hi">–</b></div>
@@ -94,6 +108,45 @@ const TIPOS = [   // rangos típicos (MIDI)
   ['Contralto', 53, 77], ['Mezzosoprano', 57, 81], ['Soprano', 60, 84]
 ];
 
+/* Espectro semicircular: Bajo (izquierda, grave) a Soprano (derecha, agudo) */
+const COL = ['#14b8a6','#38bdf8','#3b82f6','#818cf8','#f472b6','#a855f7'];
+const NOM = ['Bajo','Barítono','Tenor','Contralto','Mezzo','Soprano'];
+const segs = [];
+(function(){
+  const NS = 'http://www.w3.org/2000/svg', g = $('#arcoSegs'), cx = 200, cy = 200, r0 = 105, r1 = 185, gap = 1.2;
+  const pt = (r, a) => [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
+  const nodo = (t, at) => { const n = document.createElementNS(NS, t); for (const k in at) n.setAttribute(k, at[k]); return n; };
+  TIPOS.forEach((t, i) => {
+    const a0 = 180 - 30 * i - gap, a1 = 180 - 30 * (i + 1) + gap;
+    const [x0,y0] = pt(r1,a0), [x1,y1] = pt(r1,a1), [x2,y2] = pt(r0,a1), [x3,y3] = pt(r0,a0);
+    const p = nodo('path', {d:`M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`, fill:COL[i], class:'seg'});
+    g.append(p); segs.push(p);
+  });
+  TIPOS.forEach((t, i) => {
+    const [tx, ty] = pt((r0 + r1) / 2, 180 - 30 * i - 15);
+    const tt = nodo('text', {x:tx, y:ty + 4, 'text-anchor':'middle', class:'segTxt'}); tt.textContent = NOM[i]; g.append(tt);
+  });
+})();
+function pintarArco(){
+  const sc = TIPOS.map(([n, a, b]) => {
+    if (lo === null) return 0;
+    const inter = Math.max(0, Math.min(hi, b) - Math.max(lo, a)), un = Math.max(hi, b) - Math.min(lo, a);
+    return inter / un;
+  });
+  const mx = Math.max(...sc), st = lo === null ? 0 : hi - lo, best = st >= 12 ? sc.indexOf(mx) : -1;
+  segs.forEach((p, i) => {
+    let o = .2;
+    if (lo !== null && mx > 0) o = .2 + .4 * sc[i] / mx;
+    if (actual !== null && actual >= TIPOS[i][1] && actual <= TIPOS[i][2]) o = Math.max(o, .7);
+    if (i === best) o = 1;
+    p.style.opacity = o;
+    p.style.filter = i === best ? `drop-shadow(0 0 12px ${COL[i]})` : 'none';
+  });
+  $('#arcoTipo').textContent = best >= 0 ? TIPOS[best][0] : 'Tu cuerda';
+  $('#arcoTipo').style.color = best >= 0 ? COL[best] : 'var(--text)';
+  $('#arcoInfo').textContent = best >= 0 ? `Rango típico: ${nombre(TIPOS[best][1])} a ${nombre(TIPOS[best][2])}` : 'Cantá para iluminar el espectro';
+}
+
 /* Teclado visual: piano con teclas blancas y negras */
 const piano = $('#teclas'), els = {};
 const esNegra = m => [1,3,6,8,10].includes(m % 12);
@@ -112,6 +165,7 @@ for (let m = MIN; m <= MAX; m++){
 
 let lo = null, hi = null, actual = null;
 function pintar(){
+  pintarArco();
   for (const m in els){
     const dentro = lo !== null && +m >= lo && +m <= hi;
     els[m].classList.toggle('in', dentro);
@@ -170,7 +224,7 @@ async function iniciar(){
   an = ctx.createAnalyser(); an.fftSize = 4096;
   ctx.createMediaStreamSource(stream).connect(an);
   buf = new Float32Array(an.fftSize);
-  $('#go').textContent = '⏹ Detener';
+  $('#go').textContent = 'Detener';
   loop();
 }
 function detener(){
@@ -178,7 +232,7 @@ function detener(){
   if (stream) stream.getTracks().forEach(t => t.stop());
   if (ctx) ctx.close();
   ctx = null; actual = null; hist = [];
-  $('#go').textContent = '🎤 Empezar a escuchar';
+  $('#go').textContent = 'Empezar a escuchar';
   $('#nota').textContent = '–'; $('#hz').textContent = 'Detenido.'; $('#aguja').style.left = '50%';
   pintar();
 }
