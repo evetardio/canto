@@ -4,15 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Visor 3D de Laringe | Eve Tardío · Vocal Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg1:#0b0816;--bg2:#1b1233;--panel:rgba(18,13,34,.82);--line:rgba(196,160,255,.22);--ink:#f1eafd;--mute:#b7a8d6;--acc:#a855f7;--acc2:#7c3aed;--tip:#f3c969}
+:root{--bg1:#0b0816;--bg2:#1b1233;--panel:rgba(18,13,34,.82);--line:rgba(196,160,255,.22);--ink:#f1eafd;--mute:#b7a8d6;--acc:#a855f7;--acc2:#7c3aed;--tip:#f3c969;--hh:56px}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(ellipse at 30% 20%,var(--bg2),var(--bg1) 70%)}
+html,body{margin:0;height:100%;overflow:hidden;font-family:'Oxanium',system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(ellipse at 30% 20%,var(--bg2),var(--bg1) 70%)}
 canvas{display:block;position:absolute;inset:0;touch-action:none}
 .glass{background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px)}
+header{position:absolute;top:0;left:0;right:0;height:var(--hh);display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 24px;z-index:6;background:rgba(11,8,22,.8);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:1.2rem;font-weight:700;letter-spacing:.5px;text-shadow:0 0 12px rgba(192,132,252,.6);white-space:nowrap}
+header a{color:#c084fc;text-decoration:none;font-size:.95rem;white-space:nowrap}
+header a:hover{color:var(--ink)}
 #hint.off{display:none}
-#hint{position:absolute;top:62px;left:12px;max-width:260px;padding:10px 12px;font-size:13px;color:var(--mute);pointer-events:none}
-#menu{position:absolute;top:12px;right:12px;padding:10px 12px;font-size:13px;display:grid;gap:8px;z-index:5}
+#hint{position:absolute;top:calc(var(--hh) + 12px);left:12px;max-width:260px;padding:10px 12px;font-size:13px;color:var(--mute);pointer-events:none}
+#menu{position:absolute;top:calc(var(--hh) + 12px);right:12px;padding:10px 12px;font-size:13px;display:grid;gap:8px;z-index:5}
 #menu label{display:flex;gap:6px;align-items:center;cursor:pointer}
 select,button{font:inherit;font-size:13px;color:var(--ink);border-radius:8px;border:1px solid var(--line);background:#2a1d4d;padding:7px 12px;cursor:pointer}
 button:hover{background:#3b2970}
@@ -33,16 +40,15 @@ input[type=range]{accent-color:var(--acc);width:100%}
 #close{position:absolute;top:8px;right:8px;padding:2px 8px}
 #load{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);pointer-events:none}
 .dl{display:flex;gap:6px}.dl button{flex:1;padding:7px 8px}
-#back{position:absolute;top:12px;left:12px;padding:8px 12px;font-size:13px;color:var(--ink);text-decoration:none;z-index:5}
-#back:hover{background:#3b2970}
-#brand{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:12px;letter-spacing:.04em;color:var(--mute);opacity:.75;text-decoration:none;white-space:nowrap;z-index:5}
-#brand:hover{opacity:1;color:var(--ink)}
-@media(max-width:700px){#hint{display:none}#menu{top:12px;left:96px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select,#menu .dl{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
+@media(max-width:700px){:root{--hh:50px}header{padding:0 14px}header h1{font-size:1rem}#hint{display:none}#menu{top:calc(var(--hh) + 8px);left:12px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select,#menu .dl{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<a id="back" class="glass" href="index.html" target="_top">← Inicio</a>
+<header>
+  <h1>Eve Tardío | Vocal Coach</h1>
+  <a href="index.html" target="_top">← Inicio</a>
+</header>
 <div id="hint" class="glass">Tocá una estructura para ver qué es y qué significa al cantar. Arrastrá para rotar, pellizcá o usá la rueda para acercar.</div>
 
 <div id="menu" class="glass">
@@ -75,7 +81,6 @@ input[type=range]{accent-color:var(--acc);width:100%}
     <button id="reset">Armar</button>
   </div>
 </div>
-<a id="brand" href="index.html" target="_top">Eve Tardío · Vocal Coach</a>
 <div id="load">Cargando modelo…</div>
 
 <script type="importmap">
@@ -346,7 +351,7 @@ addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camer
 
 /* ---------- Descargar PNG (alta calidad) ---------- */
 let job = null;
-const FONT = '"Segoe UI", system-ui, -apple-system, sans-serif';
+const FONT = '"Oxanium", "Segoe UI", system-ui, -apple-system, sans-serif';
 const slug = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const wrapText = (c, text, maxW) => {
   const out = []; let line = '';
