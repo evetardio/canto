@@ -43,6 +43,7 @@ input[type=range]{accent-color:var(--acc);width:100%}
 @media(max-width:700px){:root{--hh:50px}header{padding:0 14px}header h1{font-size:1rem}#hint{display:none}#menu{top:calc(var(--hh) + 8px);left:12px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select,#menu .dl{width:100%}#info{top:auto;bottom:150px;left:12px;right:12px;width:auto;transform:none;max-height:30%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+<script src="analytics.js"></script>
 </head>
 <body>
 <header>
@@ -295,7 +296,7 @@ function loadModel(file){
     setSlider(0); $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
 }
-$('modelSelect').addEventListener('change', e => loadModel(e.target.value));
+$('modelSelect').addEventListener('change', e => { window.track?.('laringe_modelo', {modelo: e.target.value}); loadModel(e.target.value); });
 
 /* ---------- Despliegue ---------- */
 function setSlider(v){            // modo libre: todas las piezas a la vez
@@ -327,6 +328,7 @@ function select(p){
   const t = TIPS.find(([re]) => re.test(p.name));
   $('iTip').style.display = t ? 'block' : 'none'; if (t) $('iTipTxt').textContent = t[1];
   $('info').style.display = 'block';
+  window.track?.('laringe_estructura', {estructura: p.name});
   if (!DEBUG) new THREE.Box3().setFromObject(p.mesh).getCenter(focus);
 }
 $('close').addEventListener('click', () => select(null));
@@ -448,8 +450,8 @@ function runExport({text, transparent}){
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }, 'image/png');
 }
-$('dl0').addEventListener('click', () => { hovered = null; job = {text: false, transparent: $('tr').checked}; });
-$('dl1').addEventListener('click', () => { hovered = null; job = {text: true}; });
+$('dl0').addEventListener('click', () => { window.track?.('laringe_descargar_png', {con_texto: false}); hovered = null; job = {text: false, transparent: $('tr').checked}; });
+$('dl1').addEventListener('click', () => { window.track?.('laringe_descargar_png', {con_texto: true}); hovered = null; job = {text: true}; });
 
 /* ---------- Bucle ---------- */
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -477,3 +479,4 @@ loadModel($('modelSelect').value);
 </script>
 </body>
 </html>
+
