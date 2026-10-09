@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Afinador de Precisión | Eve Tardío</title>
+<meta name="theme-color" content="#0b0b0f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="analytics.js"></script>
+<style>
+:root{--bg:#0b0b0f;--card:#16161f;--acc:#c084fc;--text:#f3f4f6;--mute:#9ca3af;--line:rgba(192,132,252,.15);--ok:#14b8a6;--mid:#818cf8;--bad:#f472b6}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Oxanium','Segoe UI',Tahoma,sans-serif}
+[hidden]{display:none!important}
+body{background:radial-gradient(circle at 70% 0%,#1e1b4b 0%,var(--bg) 60%) fixed;color:var(--text);line-height:1.6;min-height:100vh}
+a{color:var(--acc);text-decoration:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;border-bottom:1px solid var(--line)}
+header h1{font-size:1.2rem;text-shadow:0 0 12px rgba(192,132,252,.6)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1.2rem;display:grid;gap:1.4rem}
+h2{font-size:2rem;background:linear-gradient(135deg,#fff,var(--acc));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.3}
+.sub{color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.6rem;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.btn{color:#fff;padding:.65rem 1.6rem;border:1.5px solid transparent;border-radius:99px;font-size:.95rem;cursor:pointer;font-weight:600;letter-spacing:.03em;background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(90deg,#14b8a6,#3b82f6,#a855f7,#f472b6) border-box;transition:box-shadow .2s}
+.btn:hover{box-shadow:0 0 18px rgba(168,85,247,.35)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+.btn.ghost:hover{box-shadow:none;color:var(--text);border-color:rgba(192,132,252,.5)}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+select{background:#0e0e15;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:.4rem .6rem;font-size:.95rem}
+.row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;justify-content:center}
+.tabs{display:flex;gap:.6rem;flex-wrap:wrap}
+.live{text-align:center;display:grid;gap:.8rem}
+.voces{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
+.voz{border:1.5px solid var(--c);background:transparent;color:var(--text);border-radius:99px;padding:.4rem 1rem;cursor:pointer;font-weight:600;font-size:.9rem;transition:box-shadow .2s,background .2s}
+.voz[aria-pressed=true]{background:color-mix(in srgb,var(--c) 30%,transparent);box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}
+.objetivo{font-size:1.1rem}
+.objetivo b{font-size:1.6rem;color:var(--acc);margin:0 .4rem}
+#nota{font-size:5rem;font-weight:800;line-height:1.1;min-height:1.1em;transition:color .15s}
+#nota.chico{font-size:3rem}
+#hz{color:var(--mute);min-height:1.6em}
+#mensaje{min-height:1.6em;font-weight:600;color:var(--acc)}
+.dial{max-width:380px;margin:0 auto;width:100%}
+.dial svg{display:block;width:100%;height:auto}
+#aguja{transform-origin:150px 145px;transition:transform .08s}
+.meta{font-size:.85rem;color:var(--mute)}
+.err{color:#fca5a5}
+canvas{display:block;width:100%;height:230px;border-radius:8px;background:#0e0e15}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1rem;text-align:center;margin-top:1rem}
+.stats b{display:block;font-size:1.8rem;color:var(--acc)}
+.leyenda{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:.8rem}
+.leyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.35rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Eve Tardío | Vocal Coach</h1>
+  <a href="index.html">← Inicio</a>
+</header>
+
+<main>
+  <div>
+    <h2>Afinador de Precisión</h2>
+    <p class="sub">Medí tu afinación en tiempo real o entrená tu oído: la app te dicta una nota de tu tipo de voz y vos la cantás igual.</p>
+  </div>
+
+  <div class="tabs" role="group" aria-label="Modo">
+    <button class="btn" id="tabLibre" aria-pressed="true">Afinador libre</button>
+    <button class="btn ghost" id="tabOido" aria-pressed="false">Entrenar el oído</button>
+  </div>
+
+  <div class="card live">
+    <div id="panelLibre" class="row"><button class="btn" id="go">Empezar a escuchar</button></div>
+
+    <div id="panelOido" hidden>
+      <p class="meta">1. Elegí tu tipo de voz · 2. Escuchá la nota · 3. Cantala igual</p>
+      <div class="voces" id="voces" style="margin:.7rem 0 .3rem"></div>
+      <p class="meta" id="vozInfo">Elegí un tipo de voz para empezar.</p>
+      <label class="meta" style="display:block;margin:.5rem 0"><input type="checkbox" id="sost"> Incluir notas con sostenido (#)</label>
+      <div class="row">
+        <button class="btn" id="nueva">Escuchar nota</button>
+        <button class="btn ghost" id="repetir" disabled>Repetir sonido</button>
+        <button class="btn ghost" id="revelar" disabled>Ver nota</button>
+        <button class="btn ghost" id="terminar" disabled>Terminar</button>
+      </div>
+      <p class="objetivo" style="margin-top:.8rem">Nota a cantar:<b id="objetivoTxt">–</b><span id="puntaje" class="meta"></span></p>
+      <p class="meta">Usá auriculares para que el micrófono no capte el sonido de la app. Podés cantar en tu octava cómoda: se cuenta igual.</p>
+    </div>
+
+    <label class="meta">La central (La4) <select id="la"><option>415</option><option>432</option><option>438</option><option selected>440</option><option>442</option><option>443</option><option>444</option></select> Hz</label>
+
+    <div id="nota">–</div>
+    <div id="hz">Esperando tu voz…</div>
+    <div class="dial">
+      <svg viewBox="0 0 300 160" role="img" aria-label="Indicador de afinación">
+        <g id="zonas"></g>
+        <line id="aguja" x1="150" y1="145" x2="150" y2="42" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="150" cy="145" r="7" fill="#fff"/>
+      </svg>
+    </div>
+    <p class="meta">Turquesa = afinado (±10 cents) · violeta azulado = cerca · rosado = lejos</p>
+    <div id="mensaje" role="status" aria-live="polite"></div>
+    <p class="meta err" id="err" role="alert"></p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:.6rem">Estabilidad en el tiempo</h3>
+    <canvas id="graf" aria-label="Gráfico de la afinación en los últimos segundos"></canvas>
+    <div class="leyenda meta"><span><i style="background:var(--ok)"></i>Zona afinada (±10 cents)</span><span>Eje: desvío en cents · tiempo hacia la derecha</span></div>
+    <div class="stats">
+      <div><span class="meta">Desvío promedio (últimos 3 s)</span><b id="desvio">–</b></div>
+      <div><span class="meta">Estabilidad de la nota</span><b id="estab">–</b><span class="meta" id="estabTxt"></span></div>
+    </div>
+    <p class="meta" style="margin-top:1rem">100 cents equivalen a un semitono. Un vibrato natural y parejo hace oscilar la línea alrededor del centro: es normal. Lo que buscamos es que el centro de esa oscilación quede en la zona turquesa.</p>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const NOMBRES = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+const nombre = m => NOMBRES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+const LA = () => parseFloat($('#la').value);
+const TEAL = '#14b8a6', INDIGO = '#818cf8', ROSA = '#f472b6';
+const colorDe = c => { const a = Math.abs(c); return a <= 10 ? TEAL : a <= 25 ? INDIGO : ROSA; };
+/* tipos de voz: nombre, nota MIDI más grave, más aguda, color (misma gama que el Analizador de Tesitura) */
+const TIPOS = [['Soprano',60,84,'#a855f7'],['Mezzosoprano',57,81,'#f472b6'],['Contralto',53,77,'#818cf8'],['Tenor',48,72,'#3b82f6'],['Barítono',45,69,'#38bdf8'],['Bajo',40,64,'#14b8a6']];
+const negra = m => [1,3,6,8,10].includes(m % 12);
+
+/* Dial semicircular: -50 a +50 cents */
+(function(){
+  const NS = 'http://www.w3.org/2000/svg', g = $('#zonas'), cx = 150, cy = 145, r0 = 92, r1 = 122;
+  const ang = c => 90 - c / 50 * 70;
+  const pt = (r, a) => [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
+  [[-50,-25,ROSA],[-25,-10,INDIGO],[-10,10,TEAL],[10,25,INDIGO],[25,50,ROSA]].forEach(([c0, c1, col]) => {
+    const a0 = ang(c0), a1 = ang(c1);
+    const [x0,y0] = pt(r1,a0), [x1,y1] = pt(r1,a1), [x2,y2] = pt(r0,a1), [x3,y3] = pt(r0,a0);
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`);
+    p.setAttribute('fill', col); p.setAttribute('opacity', '.85'); g.append(p);
+  });
+  [[-50,'♭'],[50,'♯']].forEach(([c, t]) => {
+    const [x, y] = pt(r1 + 14, ang(c)), tx = document.createElementNS(NS, 'text');
+    tx.setAttribute('x', x); tx.setAttribute('y', y + 5); tx.setAttribute('text-anchor', 'middle'); tx.setAttribute('fill', '#9ca3af'); tx.setAttribute('font-size', '16'); tx.textContent = t; g.append(tx);
+  });
+})();
+
+/* Detección de tono (NSDF tipo McLeod) */
+function detectar(buf, sr){
+  const N = buf.length; let rms = 0;
+  for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
+  if (Math.sqrt(rms / N) < 0.012) return null;
+  const minL = Math.floor(sr / 1100), maxL = Math.min(Math.floor(sr / 70), N >> 1);
+  const nsdf = new Float32Array(maxL + 1);
+  for (let l = minL - 1; l <= maxL; l++){
+    let acf = 0, m = 0;
+    for (let i = 0; i < N - l; i++){ acf += buf[i] * buf[i + l]; m += buf[i] * buf[i] + buf[i + l] * buf[i + l]; }
+    nsdf[l] = m ? 2 * acf / m : 0;
+  }
+  let max = 0; for (let l = minL; l <= maxL; l++) if (nsdf[l] > max) max = nsdf[l];
+  if (max < 0.85) return null;
+  for (let l = minL; l < maxL; l++){
+    if (nsdf[l] > 0.9 * max && nsdf[l] >= nsdf[l - 1] && nsdf[l] >= nsdf[l + 1]){
+      const a = nsdf[l - 1], b = nsdf[l], c = nsdf[l + 1], d = a - 2 * b + c;
+      return sr / (d ? l + 0.5 * (a - c) / d : l);
+    }
+  }
+  return null;
+}
+
+/* Gráfico: desvío en cents de los últimos segundos */
+const cv = $('#graf'), g2 = cv.getContext('2d'), VENT = 8000;
+let muestras = [];
+function ajustar(){ const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); dibujar(); }
+function dibujar(){
+  const W = cv.width, H = cv.height, d = devicePixelRatio || 1, ahora = performance.now();
+  const Y = c => H * (.5 - Math.max(-55, Math.min(55, c)) / 110);
+  g2.clearRect(0, 0, W, H);
+  g2.fillStyle = 'rgba(20,184,166,.16)'; g2.fillRect(0, Y(10), W, Y(-10) - Y(10));
+  g2.font = `${10 * d}px Oxanium, sans-serif`; g2.fillStyle = '#9ca3af';
+  [[25,'+25'],[0,'0'],[-25,'−25']].forEach(([c, t]) => {
+    g2.strokeStyle = c === 0 ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.08)'; g2.lineWidth = d;
+    g2.beginPath(); g2.moveTo(0, Y(c)); g2.lineTo(W, Y(c)); g2.stroke(); g2.fillText(t, 4 * d, Y(c) - 3 * d);
+  });
+  g2.lineWidth = 2.5 * d; g2.lineCap = 'round';
+  const X = t => W * (1 - (ahora - t) / VENT);
+  for (let i = 1; i < muestras.length; i++){
+    const a = muestras[i - 1], b = muestras[i];
+    if (a.c === null || b.c === null || Math.abs(b.c - a.c) > 60 || b.t - a.t > 200) continue;
+    g2.strokeStyle = colorDe(b.c); g2.beginPath(); g2.moveTo(X(a.t), Y(a.c)); g2.lineTo(X(b.t), Y(b.c)); g2.stroke();
+  }
+}
+addEventListener('resize', ajustar);
+
+function estadisticas(){
+  const ahora = performance.now();
+  const rec = muestras.filter(s => s.c !== null && ahora - s.t < 3000);
+  $('#desvio').textContent = rec.length > 5 ? '±' + (rec.reduce((s, x) => s + Math.abs(x.c), 0) / rec.length).toFixed(0) + ' ¢' : '–';
+  const fin = muestras[muestras.length - 1], nota = [];
+  if (fin && fin.c !== null){
+    for (let i = muestras.length - 1; i >= 0; i--){
+      const s = muestras[i];
+      if (s.c === null || s.m !== fin.m || ahora - s.t > 1500) break;
+      nota.push(s.c);
+    }
+  }
+  if (nota.length < 15){ $('#estab').textContent = '–'; $('#estabTxt').textContent = ''; return; }
+  const med = nota.reduce((s, x) => s + x, 0) / nota.length;
+  const sd = Math.sqrt(nota.reduce((s, x) => s + (x - med) * (x - med), 0) / nota.length);
+  $('#estab').textContent = '±' + sd.toFixed(0) + ' ¢';
+  $('#estabTxt').textContent = sd < 6 ? 'Muy estable' : sd < 12 ? 'Estable' : 'Oscilante (¿vibrato?)';
+}
+
+/* ---------- Estado ---------- */
+let modo = 'libre', ctx = null, an = null, stream = null, raf = 0, buf = null, t0 = 0, ONDA = null, IR = null;
+let voz = null, objetivo = null, ultimoObj = null, sonando = false, resuelto = false, revelada = false, aciertoDesde = 0, total = 0, aciertos = 0;
+
+function pantalla(txt, color, chico){
+  const n = $('#nota'); n.textContent = txt; n.style.color = color || ''; n.classList.toggle('chico', !!chico);
+}
+function aguja(c){ $('#aguja').style.transform = `rotate(${Math.max(-50, Math.min(50, c)) / 50 * 70}deg)`; }
+
+/* ---------- Audio: micrófono + sonido dictado ---------- */
+async function asegurarAudio(){
+  $('#err').textContent = '';
+  if (ctx){ if (ctx.state === 'suspended') await ctx.resume(); return true; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+  } catch (e){
+    $('#err').textContent = 'No pude acceder al micrófono. Permití el acceso en el navegador y probá de nuevo.';
+    return false;
+  }
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  an = ctx.createAnalyser(); an.fftSize = 4096;
+  ctx.createMediaStreamSource(stream).connect(an);
+  buf = new Float32Array(an.fftSize);
+  /* timbre suave y redondo: fundamental + armónicos que decaen (tipo coro / órgano suave) */
+  ONDA = ctx.createPeriodicWave(new Float32Array(7), new Float32Array([0, 1, .38, .18, .09, .045, .02]));
+  /* reverberación suave generada (cola corta que decae) */
+  const n = Math.floor(ctx.sampleRate * 1.4); IR = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let c = 0; c < 2; c++){ const d = IR.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); }
+  muestras = []; t0 = performance.now();
+  loop();
+  return true;
+}
+function detener(){
+  cancelAnimationFrame(raf);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (ctx) ctx.close();
+  if (t0) window.track?.('afinador_sesion', {modo, segundos: Math.round((performance.now() - t0) / 1000)});
+  ctx = null; stream = null; t0 = 0; sonando = false; aciertoDesde = 0;
+  $('#go').textContent = 'Empezar a escuchar';
+  pantalla('–'); $('#hz').textContent = 'Detenido.'; aguja(0);
+  $('#repetir').disabled = $('#revelar').disabled = $('#terminar').disabled = true;
+}
+function reproducir(){
+  const c0 = ctx, dur = 3, t = ctx.currentTime, f = LA() * Math.pow(2, (objetivo - 69) / 12);
+  const out = ctx.createGain(), filtro = ctx.createBiquadFilter(), seco = ctx.createGain(), humedo = ctx.createGain(), rev = ctx.createConvolver();
+  filtro.type = 'lowpass'; filtro.frequency.value = 2000; filtro.Q.value = .5;
+  seco.gain.value = .85; humedo.gain.value = .35; rev.buffer = IR;
+  out.connect(filtro); filtro.connect(seco); seco.connect(ctx.destination);
+  filtro.connect(rev); rev.connect(humedo); humedo.connect(ctx.destination);
+  [-3, 3].forEach(det => {   /* dos voces apenas desafinadas = efecto coro, pero centradas en la nota exacta */
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.setPeriodicWave(ONDA); o.frequency.value = f; o.detune.value = det; g.gain.value = .5;
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 1.6);
+  });
+  out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.3, t + .18);
+  out.gain.setValueAtTime(.3, t + dur); out.gain.setTargetAtTime(0, t + dur, .25);
+  sonando = true; muestras = []; resuelto = false; aciertoDesde = 0;
+  setTimeout(() => { if (ctx === c0){ sonando = false; muestras = []; } }, (dur + .6) * 1000);
+}
+
+/* ---------- Bucle de escucha ---------- */
+function loop(){
+  raf = requestAnimationFrame(loop);
+  const ahora = performance.now(), oido = modo === 'oido' && objetivo !== null;
+  if (sonando){ pantalla('♪', '', false); $('#hz').textContent = 'Escuchá la nota…'; aguja(0); dibujar(); return; }
+  an.getFloatTimeDomainData(buf);
+  const f = detectar(buf, ctx.sampleRate);
+  if (f && f > 60 && f < 1200){
+    const midiF = 69 + 12 * Math.log2(f / LA());
+    let c, m = Math.round(midiF);
+    if (oido){ let d = midiF - objetivo; d -= 12 * Math.round(d / 12); c = d * 100; m = 0; }   /* cualquier octava vale */
+    else c = (midiF - m) * 100;
+    $('#hz').textContent = `${f.toFixed(1)} Hz · ${c >= 0 ? '+' : ''}${c.toFixed(0)} cents`;
+    aguja(c);
+    if (oido){
+      if (resuelto) pantalla('✔', TEAL, false);
+      else if (Math.abs(c) <= 15) pantalla('¡Ahí!', TEAL, true);
+      else pantalla(c < 0 ? 'Subí' : 'Bajá', colorDe(c), true);
+      if (!resuelto){
+        if (Math.abs(c) <= 15){ if (!aciertoDesde) aciertoDesde = ahora; else if (ahora - aciertoDesde >= 800) resolver(); }
+        else aciertoDesde = 0;
+      }
+    } else pantalla(nombre(m), colorDe(c), false);
+    muestras.push({t: ahora, c, m});
+  } else {
+    aciertoDesde = 0;
+    pantalla(resuelto ? '✔' : '–', resuelto ? TEAL : '', false);
+    $('#hz').textContent = oido ? (resuelto ? 'Muy bien. Pedí otra nota cuando quieras.' : 'Cantá la nota que escuchaste…') : 'Esperando tu voz…';
+    aguja(0);
+    muestras.push({t: ahora, c: null, m: null});
+  }
+  while (muestras.length && ahora - muestras[0].t > VENT) muestras.shift();
+  dibujar(); estadisticas();
+}
+
+/* ---------- Modo libre ---------- */
+$('#go').addEventListener('click', async () => {
+  if (ctx){ detener(); return; }
+  if (await asegurarAudio()){ $('#go').textContent = 'Detener'; window.track?.('afinador_iniciar', {modo: 'libre'}); }
+});
+
+/* ---------- Modo entrenar el oído ---------- */
+const cont = $('#voces');
+TIPOS.forEach(([n, a, b, col], i) => {
+  const bt = document.createElement('button'); bt.className = 'voz'; bt.textContent = n; bt.style.setProperty('--c', col); bt.setAttribute('aria-pressed', 'false');
+  bt.addEventListener('click', () => {
+    voz = i; cont.querySelectorAll('.voz').forEach((x, k) => x.setAttribute('aria-pressed', k === i));
+    $('#vozInfo').textContent = `${n}: se dictan notas entre ${nombre(a + 5)} y ${nombre(b - 7)}, la zona más cómoda de la voz.`;
+  });
+  cont.append(bt);
+});
+function ui(){
+  $('#objetivoTxt').textContent = objetivo === null ? '–' : revelada ? nombre(objetivo) : '?';
+  $('#puntaje').textContent = total ? `Aciertos: ${aciertos} de ${total}` : '';
+  $('#nueva').textContent = total ? 'Nueva nota' : 'Escuchar nota';
+}
+function resolver(){
+  resuelto = true; revelada = true; aciertos++;
+  $('#mensaje').textContent = `¡Lo lograste! Era ${nombre(objetivo)}.`;
+  window.track?.('entrenamiento_acierto', {voz: TIPOS[voz][0]});
+  ui();
+}
+$('#nueva').addEventListener('click', async () => {
+  if (voz === null){ $('#mensaje').textContent = 'Elegí primero tu tipo de voz.'; return; }
+  if (!await asegurarAudio()) return;
+  const [n, a, b] = TIPOS[voz]; let cand = [];
+  for (let m = a + 5; m <= b - 7; m++) if ($('#sost').checked || !negra(m)) cand.push(m);
+  cand = cand.filter(m => m !== ultimoObj);
+  objetivo = ultimoObj = cand[Math.floor(Math.random() * cand.length)];
+  total++; revelada = false; $('#mensaje').textContent = '';
+  $('#repetir').disabled = $('#revelar').disabled = $('#terminar').disabled = false;
+  window.track?.('entrenamiento_nota', {voz: n});
+  ui(); reproducir();
+});
+$('#repetir').addEventListener('click', () => { if (ctx && objetivo !== null) reproducir(); });
+$('#revelar').addEventListener('click', () => { revelada = true; ui(); });
+$('#terminar').addEventListener('click', () => {
+  const res = total ? `Práctica terminada: ${aciertos} aciertos de ${total} notas.` : '';
+  detener(); objetivo = null; revelada = false; ui(); $('#mensaje').textContent = res; total = aciertos = 0;
+});
+
+/* ---------- Cambio de modo ---------- */
+function setModo(m){
+  if (ctx) detener();
+  modo = m; objetivo = null; revelada = false; resuelto = false; total = aciertos = 0; muestras = [];
+  $('#panelLibre').hidden = m !== 'libre'; $('#panelOido').hidden = m !== 'oido';
+  $('#tabLibre').className = 'btn' + (m === 'libre' ? '' : ' ghost'); $('#tabLibre').setAttribute('aria-pressed', m === 'libre');
+  $('#tabOido').className = 'btn' + (m === 'oido' ? '' : ' ghost'); $('#tabOido').setAttribute('aria-pressed', m === 'oido');
+  $('#mensaje').textContent = ''; pantalla('–'); $('#hz').textContent = m === 'oido' ? 'Elegí tu voz y apretá "Escuchar nota".' : 'Esperando tu voz…'; aguja(0); ui(); dibujar();
+  window.track?.('afinador_modo', {modo: m});
+}
+$('#tabLibre').addEventListener('click', () => { if (modo !== 'libre') setModo('libre'); });
+$('#tabOido').addEventListener('click', () => { if (modo !== 'oido') setModo('oido'); });
+ajustar();
+</script>
+</body>
+</html>
