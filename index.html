@@ -122,8 +122,8 @@ label{font-size:.85rem;color:var(--mute)}
 <section id="inicio" class="hero">
   <svg class="ondas" id="ondas" viewBox="0 0 1440 360" preserveAspectRatio="none" aria-hidden="true"><g></g><g></g><g></g></svg>
   <div class="hero-content">
-    <h2>Pedagogía Vocal y Técnica al Siguiente Nivel</h2>
-    <p>Un espacio innovador que combina la técnica vocal profesional, herramientas tecnológicas inmersivas y formación especializada para cantantes.</p>
+    <h2>Elevá tu técnica y pedagogía vocal</h2>
+    <p>Un espacio innovador que combina la técnica vocal, herramientas tecnológicas inmersivas y formación especializada para cantantes.</p>
     <div class="btns">
       <a href="#apps" class="btn">Explorar Apps</a>
       <a href="#cursos" class="btn ghost">Ver cursos</a>
@@ -135,45 +135,41 @@ label{font-size:.85rem;color:var(--mute)}
 
   <section id="apps">
     <h3 class="section-title">Laboratorio de Apps Vocales</h3>
-    <p class="section-subtitle">Herramientas digitales para comprender la mecánica y el entrenamiento de la voz. Algunas son gratuitas y otras se desbloquean con la clave de alumno.</p>
+    <p class="section-subtitle">Herramientas digitales para comprender la mecánica y el entrenamiento de la voz. Algunas son gratuitas y otras exclusivas para alumnos.</p>
     <div class="grid" id="appsGrid"></div>
   </section>
 
   <section id="cursos">
     <h3 class="section-title">Cursos para Cantantes</h3>
-    <p class="section-subtitle">Clases en video con material en PDF para descargar y reforzar lo aprendido. Ingresás con la clave que te da Eve.</p>
+    <p class="section-subtitle">Clases en video con material en PDF para descargar y reforzar lo aprendido.</p>
     <div class="grid" id="cursosGrid"></div>
   </section>
 
   <section id="cuidado">
-    <h3 class="section-title">Próximo curso en vivo</h3>
-    <p class="section-subtitle">Un espacio de profundización técnica.</p>
+    <h3 class="section-title" style="margin-bottom:2.2rem">Próximo curso en vivo</h3>
     <div class="feature reveal">
       <span class="tag lock" style="justify-self:start">Diciembre</span>
-      <h4>Cuidado y Salud Vocal: Nuevos Paradigmas</h4>
-      <p>Un encuentro en vivo para repasar herramientas actuales en la salud del cantor y optimizar el rendimiento técnico sin riesgos.</p>
-      <p><strong>Fecha y modalidad:</strong> sábado de diciembre (a confirmar). Online en vivo, con espacio de preguntas y respuestas.</p>
-      <p><strong>Incluye:</strong> acceso anticipado a recursos del campus y grabación del encuentro.</p>
-      <div><button class="btn" data-consulta="cuidado" data-msg="Hola Eve, quiero reservar mi lugar en el curso de Cuidado y Salud Vocal de diciembre.">Reservar mi lugar</button></div>
+      <h4>Voz en Equilibrio</h4>
+      <p><strong>¡Bienvenidos a Voz en Equilibrio!</strong></p>
+      <p>Este espacio nace con la idea de aprender a cuidar nuestra voz. Con ella podemos enseñar, cantar, actuar, comunicar y expresar emociones. Sin embargo, muchas veces nos acostumbramos tanto a utilizarla que solo le prestamos atención cuando aparece cansancio, ronquera o alguna molestia.</p>
+      <p>Durante este curso vamos a aprender a reconocer nuestras necesidades vocales, comprender qué hábitos nos ayudan y descubrir estrategias para reducir el esfuerzo innecesario.<br>Buscamos una voz saludable, funcional y adaptable a las exigencias de cada persona.</p>
+      <p><strong>Modalidad:</strong> Online.</p>
+      <p><strong>Incluye:</strong> Material complementario.</p>
+      <div><button class="btn" data-consulta="cuidado" data-msg="Hola Eve, quiero reservar mi lugar en el curso Voz en Equilibrio de diciembre.">Reservar mi lugar</button></div>
     </div>
   </section>
 
   <section id="contacto">
-    <h3 class="section-title">Clases y contacto</h3>
-    <p class="section-subtitle">¿Querés clases de canto con Eve o tenés una consulta? Escribile desde acá y te responde por correo.</p>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-      <article class="card reveal">
-        <div><h4>Clases de canto</h4><p>Contale qué querés trabajar con tu voz y coordinan una primera clase.</p>
-        <p style="margin-top:.8rem">También podés escribir a <a id="mailTxt" style="color:var(--acc)"></a></p></div>
-        <a class="btn ghost" id="igBtn" target="_blank" rel="noopener" style="align-self:flex-start">Instagram</a>
-      </article>
+    <h3 class="section-title">Contacto</h3>
+    <p class="section-subtitle">¿Querés clases de canto o tenés una consulta? No dudes en contactarme: <a id="mailTxt" style="color:var(--acc)"></a></p>
+    <div class="grid" style="grid-template-columns:minmax(300px,640px)">
       <article class="card reveal">
         <form class="cform" id="cform">
           <h4>Enviá tu mensaje</h4>
           <label for="fNombre">Nombre</label><input id="fNombre" autocomplete="name" required>
           <label for="fEmail">Tu correo</label><input id="fEmail" type="email" autocomplete="email" required>
           <label for="fAsunto">Motivo</label>
-          <select id="fAsunto"><option>Clases de canto</option><option>Acceso a un curso (pedir clave)</option><option>Curso de Cuidado y Salud Vocal (diciembre)</option><option>Otra consulta</option></select>
+          <select id="fAsunto"><option>Clases de canto</option><option>Acceso a un curso (pedir clave)</option><option>Curso Voz en Equilibrio (diciembre)</option><option>Otra consulta</option></select>
           <label for="fMsg">Mensaje</label><textarea id="fMsg" required></textarea>
           <input class="hp" id="fHoney" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button class="btn" type="submit" id="fBtn">Enviar mensaje</button>
@@ -247,9 +243,9 @@ const CONFIG = {
       ]}
   ],
   apps: [  // estado: 'gratis' | 'pronto' | 'candado' (con candado hay que agregar curso:'teoria' o 'piano')
-    {t:'Visor 3D de Laringe', d:'Explorá la anatomía laríngea en 3D: cartílagos, músculos y ligamentos, con explicaciones pensadas para cantantes.', href:'laringe.html', estado:'gratis'},
-    {t:'Afinador de Precisión', d:'Medí tu afinación en tiempo real o entrená tu oído: escuchá una nota de tu tipo de voz y cantala igual.', href:'afinador.html', estado:'gratis'},
-    {t:'Analizador de Tesitura', d:'Herramienta de registro para orientar el repertorio y clasificar la tesitura vocal.', href:'tesitura.html', estado:'gratis'}
+    {t:'Visor 3D de Laringe', d:'Explorá la anatomía laríngea en 3D: cartílagos, articulaciones, músculos y ligamentos, con explicaciones pensadas para cantantes.', href:'laringe.html', estado:'gratis'},
+    {t:'Afinador de Precisión', d:'Medí tu afinación en tiempo real. Y entrená tu oído: escuchá la nota acorde a tu tesitura y replicala.', href:'afinador.html', estado:'gratis'},
+    {t:'Analizador de Tesitura', d:'Orientador de tesitura vocal.', href:'tesitura.html', estado:'gratis'}
   ]
 };
 /* NOTA: la clave se verifica en esta misma página, así que funciona como filtro, no como seguridad real. */
@@ -261,7 +257,7 @@ const store = {
   set(k, v){ try { localStorage.setItem('eve:' + k, v); } catch (e) {} },
   del(k){ try { localStorage.removeItem('eve:' + k); } catch (e) {} }
 };
-const ASUNTOS = {clases:'Clases de canto', acceso:'Acceso a un curso (pedir clave)', cuidado:'Curso de Cuidado y Salud Vocal (diciembre)', otra:'Otra consulta'};
+const ASUNTOS = {clases:'Clases de canto', acceso:'Acceso a un curso (pedir clave)', cuidado:'Curso Voz en Equilibrio (diciembre)', otra:'Otra consulta'};
 function consulta(tipo, msg){
   document.querySelectorAll('dialog[open]').forEach(d => d.close());
   $('#fAsunto').value = ASUNTOS[tipo] || ASUNTOS.otra;
@@ -356,7 +352,6 @@ document.addEventListener('click', e => {
 
 /* Contacto */
 $('#mailTxt').href = 'mailto:' + CONFIG.email; $('#mailTxt').textContent = CONFIG.email;
-if (CONFIG.instagram) $('#igBtn').href = CONFIG.instagram; else $('#igBtn').remove();
 
 /* Formulario: se envía desde la misma página (servicio FormSubmit).
    Si falla, el motivo exacto queda en la consola del navegador (F12 → Console). */
