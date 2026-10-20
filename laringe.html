@@ -92,51 +92,103 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-/* ---------- Datos anatómicos: [claves del modelo], nombre, descripción ---------- */
-const D = [
- [["Thryoid_cartilage_Thyroid_Mat_0","Object_7"],"Cartílago Tiroides","El cartílago más grande de la laringe. Forma la pared frontal (la “nuez”) y protege las cuerdas vocales."],
- [["Cricoid_cartilage_Cricoid_0","Cricoid_Cartilage","Object_8"],"Cartílago Cricoides","Anillo completo en la base de la laringe. Sostiene a los aritenoides y es el punto de apoyo del tiroides."],
- [["Trachea_Vocal_Cords_Mat_0","Trachea","Object_11"],"Tráquea","Tubo que conduce el aire espiratorio hacia la laringe y hace posible el sonido."],
- [["Median_Cricothyroid_Ligament_Vocal_Cords_Mat_0","Object_9"],"Ligamento Cricotiroideo Medio","Membrana elástica que une el arco del cricoides con el borde inferior del tiroides."],
- [["Right_Corniculate_Cartilage_lambert8_0"],"Cartílago Corniculado (de Santorini)","Pequeño cartílago elástico sobre el aritenoides; da soporte a los pliegues aritenoepiglóticos."],
- [["Right_Thyroid_Ligament_Vocal_Cords_Mat_0","Right_Thyroid_Membrane_Vocal_Cords_Mat_0"],"Membrana Tirohioidea (Der.)","Estructura fibrosa lateral que conecta el hioides con el tiroides."],
- [["Left_Thyroid_Membrane_Vocal_Cords_Mat_0"],"Membrana Tirohioidea (Izq.)","Estructura fibrosa lateral que conecta el hioides con el tiroides."],
- [["Object_12"],"Membrana Tirohioidea","Conexión elástica que permite el movimiento vertical de la laringe."],
- [["Hyoid_Hyoid_Mat_0","Object_5"],"Hueso Hioides","Hueso “flotante” en la base de la lengua; ancla a los músculos que suben y bajan la laringe."],
- [["Epiglottis","Object_6"],"Epiglotis","Cartílago en forma de hoja que sella la vía aérea al tragar."],
- [["Object_3","Object_14","Object_18"],"Músculo Cricotiroideo","Tensor principal de las cuerdas: al contraerse las estira y alarga, elevando el tono."],
- [["Object_10","Object_20"],"Músculos Aritenoideos","Aproximan o separan los aritenoides para cerrar o abrir la glotis."]
-];
-const INFO = {}; D.forEach(([ks,n,d]) => ks.forEach(k => INFO[k] = {name:n, desc:d}));
+/* =====================================================================
+   ESTRUCTURAS (nombres según las dos láminas de referencia, en español)
+   n = nombre · r = orden de despliegue (de afuera hacia adentro)
+   c = capa (car / mus / lig) · l = 1 si hay lado derecho/izquierdo
+   d = descripción · t = "Para el cantante"
+   ===================================================================== */
+const TIP_LIG = 'Permiten que la laringe suba y baje con libertad. Una laringe “atrapada” es señal de tensión innecesaria.';
+const E = {
+ hioides:{n:'Hueso hioides',r:0,c:'car',d:'Hueso en forma de “U” situado sobre el cartílago tiroides, en la base de la lengua. No se articula con otro hueso: la laringe cuelga de él por membranas y músculos.',t:'La tensión de lengua y mandíbula llega hasta acá. Un hioides rígido empuja la laringe hacia arriba y aprieta la voz.'},
+ membrana_tirohioidea:{n:'Membrana tirohioidea',r:1,c:'lig',l:1,d:'Lámina fibrosa que une el borde superior del cartílago tiroides con el hioides. Su parte central, más gruesa, es el ligamento tirohioideo medio.',t:TIP_LIG},
+ lig_tirohioideo_lateral:{n:'Ligamento tirohioideo lateral',r:1,c:'lig',l:1,d:'Cordón fibroso en el borde posterior de la membrana tirohioidea. Une el asta mayor del hioides con el asta superior del cartílago tiroides.',t:TIP_LIG},
+ tiroides:{n:'Cartílago tiroides',r:2,c:'car',d:'El cartílago más grande de la laringe. Sus dos láminas se unen adelante y forman la “nuez” (prominencia laríngea), que protege las cuerdas vocales.',t:'Al subir de tono se inclina sobre el cricoides y estira las cuerdas. Una laringe estable y cómoda indica buena técnica.'},
+ epiglotis:{n:'Epiglotis',r:3,c:'car',d:'Cartílago elástico en forma de hoja (cartílago epiglótico) que cubre la entrada de la laringe al tragar, para que el alimento no pase a la vía aérea.',t:'Al bostezar-cantar se inclina hacia atrás y abre espacio en el tracto vocal, dando un timbre más redondo.'},
+ m_cricotiroideo:{n:'Músculo cricotiroideo',r:4,c:'mus',l:1,d:'Va desde el arco del cricoides hasta el borde inferior del tiroides. Al contraerse inclina el tiroides hacia el cricoides, estira las cuerdas vocales y sube el tono.',t:'Es el músculo de los agudos. Si se fatiga, la nota alta se vuelve tensa o se quiebra: vale el calentamiento con sirenas suaves.'},
+ m_tiroepiglotico:{n:'Músculo tiroepiglótico',r:4,c:'mus',l:1,d:'Fibras delgadas que van del cartílago tiroides al borde de la epiglotis. Ayudan a abrir la entrada de la laringe.',t:'Ayudan a mantener abierta la entrada de la laringe, algo que favorece un sonido más redondo y libre.'},
+ m_aritenoepiglotico:{n:'Músculo aritenoepiglótico',r:4,c:'mus',l:1,d:'Tira fina de fibras que sube desde el aritenoides hasta el borde de la epiglotis, dentro del pliegue aritenoepiglótico. Al contraerse estrecha la entrada de la laringe.',t:'Al estrechar la entrada de la laringe (el tubo epilaríngeo) aporta brillo y proyección al timbre.'},
+ pliegue_ae:{n:'Pliegue aritenoepiglótico',r:5,c:'lig',d:'Pliegue de tejido blando que une el borde de la epiglotis con el aritenoides, a cada lado de la entrada de la laringe.',t:'Forma las paredes del “embudo” de la laringe. Junto con el músculo aritenoepiglótico regula el ancho de esa entrada.'},
+ lig_tiroepiglotico:{n:'Ligamento tiroepiglótico',r:5,c:'lig',d:'Une el tallo de la epiglotis con la cara interna del cartílago tiroides, justo debajo de la escotadura tiroidea.',t:TIP_LIG},
+ lig_hioepiglotico:{n:'Ligamento hioepiglótico',r:5,c:'lig',d:'Une la cara anterior de la epiglotis con el hioides.',t:TIP_LIG},
+ lig_cricotiroideo_medio:{n:'Ligamento cricotiroideo medio',r:5,c:'lig',d:'Membrana elástica que une el arco del cricoides con el borde inferior del tiroides, en la línea media.',t:'Cuando se sube de tono, el espacio entre tiroides y cricoides se acorta: es el movimiento del músculo cricotiroideo.'},
+ lig_cricotiroideo_lateral:{n:'Ligamento cricotiroideo lateral',r:5,c:'lig',l:1,d:'Porción lateral de la membrana cricotiroidea. Sube desde el borde superior del cricoides hacia el ligamento vocal.',t:TIP_LIG},
+ lig_cricotraqueal:{n:'Ligamento cricotraqueal',r:5,c:'lig',d:'Une el borde inferior del cricoides con el primer anillo de la tráquea.',t:TIP_LIG},
+ lig_vocal:{n:'Ligamento vocal',r:5,c:'lig',l:1,d:'Borde superior engrosado del cono elástico: es la base de la cuerda vocal verdadera, la parte que vibra al producir sonido.',t:'Es la parte de la cuerda vocal que vibra. Al estirarse el sonido sube de tono; la hidratación y el descanso vocal la protegen.'},
+ lig_vestibular:{n:'Ligamento vestibular',r:5,c:'lig',l:1,d:'Sostiene el pliegue vestibular (“cuerda vocal falsa”), ubicado justo por encima de la cuerda vocal verdadera.',t:'Normalmente no vibra al cantar. Si se aprieta, las cuerdas falsas se acercan y el sonido se endurece.'},
+ aritenoides:{n:'Cartílago aritenoides',r:6,c:'car',l:1,d:'Dos cartílagos con forma de pirámide sobre el cricoides. Las cuerdas vocales se insertan en ellos: al girar y deslizarse abren o cierran la glotis.',t:'Dan el cierre de las cuerdas. Poco cierre se escucha como voz soplada; demasiado, como voz apretada.'},
+ corniculado:{n:'Cartílago corniculado',r:6,c:'car',l:1,d:'Pequeño cartílago elástico sobre el vértice del aritenoides (cartílago de Santorini). Da soporte al pliegue aritenoepiglótico.',t:'Acompaña a los aritenoides, que son los que abren y cierran las cuerdas.'},
+ cricoides:{n:'Cartílago cricoides',r:7,c:'car',d:'Único anillo completo de la laringe: estrecho adelante (arco) y ancho atrás (lámina). Sostiene a los aritenoides y se articula con el tiroides.',nm:' En este modelo, los músculos de la cara posterior (cricoaritenoideos posteriores) vienen pintados sobre la misma pieza.',t:'Es la base sobre la que giran los aritenoides y se inclina el tiroides. Sin esta articulación no hay cambios de tono.'},
+ traquea:{n:'Tráquea',r:8,c:'car',d:'Tubo de anillos de cartílago (cartílagos traqueales) que conduce el aire hacia y desde la laringe.',t:'Su tracción hacia abajo ayuda a mantener la laringe estable. Es el vínculo con el apoyo respiratorio.'},
+ pared_traqueal:{n:'Pared membranosa de la tráquea',r:8,c:'mus',d:'Pared posterior blanda de la tráquea, con el músculo traqueal, que cierra por detrás los anillos de cartílago en forma de “C”.',t:'Forma parte del vínculo entre la laringe y el apoyo respiratorio.'},
+ otro:{n:'Estructura laríngea',r:4,c:'car',d:'Componente anatómico de la laringe involucrado en la fonación o en el soporte estructural.'}
+};
 
-/* Qué significa cada estructura para quien canta (se busca por nombre) */
-const TIPS = [
- [/cricotiroideo$|^Músculo Cricotiroideo/i,"Es el músculo de los agudos. Si se fatiga, la nota alta se vuelve tensa o se quiebra: vale el calentamiento con sirenas suaves."],
- [/Aritenoide/i,"Dan el cierre de las cuerdas. Poco cierre se escucha como voz soplada; demasiado, como voz apretada."],
- [/Hioides/i,"La tensión de lengua y mandíbula llega hasta acá. Un hioides rígido empuja la laringe hacia arriba y aprieta la voz."],
- [/Tiroides/i,"Al subir de tono se inclina sobre el cricoides y estira las cuerdas. Una laringe estable y cómoda indica buena técnica."],
- [/Cricoides/i,"Es la base sobre la que giran los aritenoides y se inclina el tiroides. Sin esta articulación no hay cambios de tono."],
- [/Epiglotis/i,"Al bostezar-cantar se inclina hacia atrás y abre espacio en el tracto vocal, dando un timbre más redondo."],
- [/Tráquea/i,"Su tracción hacia abajo ayuda a mantener la laringe estable. Es el vínculo con el apoyo respiratorio."],
- [/Membrana|Ligamento/i,"Permiten que la laringe suba y baje con libertad. Una laringe “atrapada” es señal de tensión innecesaria."],
- [/Corniculado/i,"Acompaña a los aritenoides, que son los que abren y cierran las cuerdas."]
-];
+/* Modelo "Anatomía general": cada pieza tiene nombre propio (se busca por nombre) */
+const ANAT = {
+ 'Thryoid_cartilage_Thyroid_Mat_0':'tiroides',
+ 'Thyroepiglottic_Ligament_Vocal_Cords_Mat_0':'lig_tiroepiglotico',
+ 'R_Vestibular_Ligament_Vocal_Cords_Mat_0':'lig_vestibular',
+ 'L_Vestibular_Ligament_Vocal_Cords_Mat_0':'lig_vestibular',
+ 'Vocal_Ligament_Vocal_Cords_Mat_0':'lig_vocal',
+ 'Vical_Ligament01_Vocal_Cords_Mat_0':'lig_vocal',
+ 'Right_Thyroid_Membrane_Vocal_Cords_Mat_0':'membrana_tirohioidea',
+ 'Left_Thyroid_Membrane_Vocal_Cords_Mat_0':'membrana_tirohioidea',
+ 'Right_Thyroid_Ligament_Vocal_Cords_Mat_0':'lig_tirohioideo_lateral',
+ 'Left_Thyroid_Ligament_Vocal_Cords_Mat_0':'lig_tirohioideo_lateral',
+ 'Median_Cricothyroid_Ligament_Vocal_Cords_Mat_0':'lig_cricotiroideo_medio',
+ 'Hyoid_Hyoid_Mat_0':'hioides',
+ 'Hyoepiglottic_Ligament_Vocal_Cords_Mat_0':'lig_hioepiglotico',
+ 'Epoglottis_Epiglottis_Mat_0':'epiglotis',
+ 'Cricoid_cartilage_Cricoid_0':'cricoides',
+ 'Right_Arytenoid_cartilage_lambert8_0':'aritenoides',
+ 'Left_Arytenoid_cartilage_lambert8_0':'aritenoides',
+ 'Right_Corniculate_Cartilage_lambert8_0':'corniculado',
+ 'Left_Corniculate_Cartilage_lambert8_0':'corniculado',
+ 'Trachea_Vocal_Cords_Mat_0':'traquea'
+};
 
-/* Categoría y orden de despliegue (de afuera hacia adentro) */
-function classify(n){
-  const s = n.toLowerCase(), has = (...w) => w.some(x => s.includes(x));
-  if (has('membrana','membrane')) return {rank:1,cat:'lig'};
-  if (has('músculo','muscle')) return {rank:4,cat:'mus'};
-  if (has('ligamento','ligament')) return {rank:5,cat:'lig'};
-  if (has('hioides','hyoid')) return {rank:0,cat:'car'};
-  if (has('epiglot')) return {rank:3,cat:'car'};
-  if (has('corniculad','corniculate')) return {rank:6,cat:'car'};
-  if (has('cricoid')) return {rank:7,cat:'car'};
-  if (has('tiroides','thyroid','thryoid')) return {rank:2,cat:'car'};
-  if (has('tráquea','trachea')) return {rank:8,cat:'car'};
-  return {rank:4,cat:'car'};
+/* Modelo "Con músculos y ligamentos": las mallas (Object_3, Object_5…) juntan varias
+   estructuras, así que se identifican por "isla" (parte desconectada de la malla).
+   Clave: 'malla|número de isla (de mayor a menor)' → [estructura, triángulos esperados] */
+const MUS = {
+ 'Object_3|0':['traquea',16254],
+ 'Object_3|1':['pared_traqueal',5466],
+ 'Object_5|0':['tiroides',109066],
+ 'Object_5|1':['tiroides',2158],
+ 'Object_6|0':['hioides',29939],
+ 'Object_6|1':['epiglotis',21316],
+ 'Object_6|2':['pliegue_ae',11486],
+ 'Object_6|3':['tiroides',6892],
+ 'Object_6|4':['m_cricotiroideo',4707],
+ 'Object_6|5':['pliegue_ae',2367],
+ 'Object_6|6':['lig_tiroepiglotico',1512],
+ 'Object_10|0':['membrana_tirohioidea',28364],
+ 'Object_12|0':['lig_cricotiroideo_lateral',28564],
+ 'Object_12|1':['lig_cricotiroideo_lateral',24716],
+ 'Object_12|2':['lig_cricotiroideo_medio',17466],
+ 'Object_14|0':['lig_cricotraqueal',31386],
+ 'Object_16|0':['corniculado',8732],
+ 'Object_16|1':['corniculado',8732],
+ 'Object_18|0':['cricoides',78786]
+};
+/* Mallas donde todas las islas grandes son la misma estructura (tiras musculares) */
+const MUS_MALLA = {'Object_8':'m_tiroepiglotico','Object_20':'m_aritenoepiglotico'};
+const FRAGMENTO_MAX = 1000;   // islas más chicas que esto (y sin nombre) son restos de la malla: no se pueden tocar
+
+const esMus = f => f.includes('muscles');
+function buscar(file, m, isl, nt){
+  if (esMus(file)){
+    const r = MUS[m.name + '|' + isl];
+    if (r && Math.abs(nt - r[1]) <= r[1]*.03 + 2) return r[0];
+    const mm = MUS_MALLA[m.name];
+    if (mm && nt >= FRAGMENTO_MAX) return mm;
+    return null;
+  }
+  return ANAT[m.name] || null;
 }
-const RANK_LABEL = ["Hioides","Membrana tirohioidea","Cartílago tiroides","Epiglotis","Músculos","Ligamentos","Cartílago corniculado","Cartílago cricoides","Tráquea"];
+
+const RANK_LABEL = ["Hueso hioides","Membrana tirohioidea","Cartílago tiroides","Epiglotis","Músculos","Ligamentos","Cartílagos aritenoides y corniculados","Cartílago cricoides","Tráquea"];
 const CAT_LABEL = {car:'Hueso / cartílago', mus:'Músculo', lig:'Ligamento / membrana'};
 
 /* Dirección de separación por rank (sx = lado izquierdo/derecho) */
@@ -175,14 +227,14 @@ const PALETA = {
   3:'#e6b3f0',   // Epiglotis
   4:'#c0496f',   // Músculos
   5:'#ddd0f7',   // Ligamentos
-  6:'#f3c969',   // Cartílago corniculado (dorado)
+  6:'#f3c969',   // Cartílagos aritenoides y corniculados (dorado)
   7:'#7c3aed',   // Cartílago cricoides
   8:'#d9d2ea',   // Tráquea
   otro:'#d6cfe6' // Piezas sin identificar
 };
 const PALETA_POR_NOMBRE = {};   // opcional, por pieza: 'Nombre_Interno': '#rrggbb'
-function recolor(mat, cl, raw){
-  const hex = PALETA_POR_NOMBRE[raw] || PALETA[(cl.rank === 4 && cl.cat === 'car') ? 'otro' : cl.rank];
+function recolor(mat, e, id, raw){
+  const hex = PALETA_POR_NOMBRE[raw] || PALETA[id === 'otro' ? 'otro' : e.r];
   if (!hex) return;
   mat.map = null; mat.vertexColors = false; mat.color.set(hex);
   if ('roughness' in mat){ mat.roughness = .55; mat.metalness = .05; }
@@ -199,12 +251,11 @@ function renderMarks(){
     document.body.append(b);
     $('cp').onclick = () => navigator.clipboard.writeText([...marked].join('\n')).catch(() => {});
   }
-  $('mkt').textContent = marked.size ? [...marked].join('\n') : 'Tocá las piezas que quedan pegadas';
+  $('mkt').textContent = marked.size ? [...marked].join('\n') : 'Tocá las piezas que quedan mal';
 }
 
 /* ---------- Islas: separa cada pieza en partes desconectadas ---------- */
-const FILAMENTOS = 'ocultar';      // 'ocultar' o 'mantener': qué hacer con los filamentos al desplegar
-const FILAMENTO_FRACCION = 0.05;   // una isla con menos de este % de los triángulos de su pieza se considera filamento
+const FILAMENTOS = 'ocultar';      // 'ocultar' o 'mantener': qué hacer con los restos de malla al desplegar
 function splitIslands(root){
   const list = [];
   root.traverse(o => { if (o.isMesh && !o.isSkinnedMesh && !Array.isArray(o.material) && o.geometry.attributes.position) list.push(o); });
@@ -231,7 +282,9 @@ function splitIslands(root){
     const groups = new Map();
     for (let t = 0; t < nt; t++){ const r = find(weld[v(t,0)]); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(t); }
     if (groups.size < 2) continue;
-    for (const tris of groups.values()){
+    /* ordenadas de mayor a menor: el número de isla identifica la estructura */
+    const orden = [...groups.values()].sort((a, b) => b.length - a.length);
+    orden.forEach((tris, idx) => {
       const remap = new Map(), order = [], newIdx = [];
       for (const t of tris) for (let c = 0; c < 3; c++){
         const o = v(t,c); let q = remap.get(o);
@@ -247,9 +300,9 @@ function splitIslands(root){
       ng.setIndex(newIdx);
       const nm = new THREE.Mesh(ng, m.material);
       nm.name = m.name; nm.position.copy(m.position); nm.quaternion.copy(m.quaternion); nm.scale.copy(m.scale);
-      nm.userData.tris = tris.length; nm.userData.parentTris = nt;
+      nm.userData.tris = tris.length; nm.userData.parentTris = nt; nm.userData.isl = idx;
       m.parent.add(nm);
-    }
+    });
     m.parent.remove(m);
   }
 }
@@ -273,25 +326,51 @@ function loadModel(file){
     camera.position.set(0, maxDim*.3, maxDim*2.6);
     focus.set(0,0,0); controls.target.copy(focus);
 
+    /* 1) identificar cada isla */
+    const meta = [];
     model.traverse(m => {
       if (!m.isMesh) return;
-      m.material = m.material.clone(); m.material.transparent = false; m.material.polygonOffset = true; m.material.polygonOffsetFactor = (pieces.length % 24) * .5; m.material.polygonOffsetUnits = (pieces.length % 24) * 2;
-      const data = INFO[m.name];
-      const name = data ? data.name : (m.name || 'Estructura laríngea');
-      const cl = classify(name);
-      if (RECOLOR.includes(file)) recolor(m.material, cl, m.name);
+      m.material = m.material.clone(); m.material.transparent = false; m.material.polygonOffset = true; m.material.polygonOffsetFactor = (meta.length % 24) * .5; m.material.polygonOffsetUnits = (meta.length % 24) * 2;
+      const isl = m.userData.isl ?? 0;
+      const nt = m.userData.tris ?? Math.floor((m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3);
       const wc = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
-      const sx = Math.abs(wc.x) > maxDim*.03 ? Math.sign(wc.x) : 0;
-      let dir = DIRS[cl.rank](sx);
-      if (sx===0 && cl.rank===4) dir = V(0,0,-1);
-      const worldOff = dir.multiplyScalar(maxDim*.55);
-      const p0 = m.parent.worldToLocal(wc.clone());
-      const p1 = m.parent.worldToLocal(wc.clone().add(worldOff));
-      pieces.push({mesh:m, name, desc: data ? data.desc : 'Componente anatómico de la laringe involucrado en la fonación o en el soporte estructural.',
-        rank:cl.rank, cat:cl.cat, tris:m.userData.tris, filament: FILAMENTOS === 'ocultar' && !!m.userData.parentTris && m.userData.tris / m.userData.parentTris < FILAMENTO_FRACCION, base:m.position.clone(), delta:p1.sub(p0), cur:0, target:0});
+      meta.push({m, isl, nt, wc, id: buscar(file, m, isl, nt), frag:false, near:null});
     });
+    /* 2) islas sin nombre: las chicas son restos de malla (siguen a la estructura más cercana) */
+    const conocidas = meta.filter(x => x.id);
+    for (const x of meta){
+      if (x.id) continue;
+      if (x.nt >= FRAGMENTO_MAX){ x.id = 'otro'; continue; }
+      x.frag = true; let bd = Infinity;
+      for (const k of conocidas){ const d = k.wc.distanceToSquared(x.wc); if (d < bd){ bd = d; x.near = k; } }
+    }
+    /* 3) armar las piezas (la línea media sale de las estructuras centrales; la vista frontal
+          muestra el lado derecho del espécimen a la izquierda de la pantalla) */
+    const centrales = meta.filter(x => ['hioides','epiglotis','cricoides','traquea','lig_cricotraqueal'].includes(x.id));
+    const midX = centrales.length ? centrales.reduce((s, x) => s + x.wc.x, 0) / centrales.length : 0;
+    for (const x of meta){
+      const m = x.m;
+      const e = x.frag ? (x.near ? E[x.near.id] : E.otro) : E[x.id];
+      const lado = (!x.frag && e.l && Math.abs(x.wc.x - midX) > maxDim*.015) ? (x.wc.x < midX ? ' (Der.)' : ' (Izq.)') : '';
+      const nombre = x.frag ? 'Fragmento' : e.n + lado;
+      if (RECOLOR.includes(file)) recolor(m.material, e, x.frag ? (x.near ? x.near.id : 'otro') : x.id, m.name);
+      const sx = Math.abs(x.wc.x) > maxDim*.03 ? Math.sign(x.wc.x) : 0;
+      let dir = DIRS[e.r](sx);
+      if (sx===0 && e.r===4) dir = V(0,0,-1);
+      const worldOff = dir.multiplyScalar(maxDim*.55);
+      const p0 = m.parent.worldToLocal(x.wc.clone());
+      const p1 = m.parent.worldToLocal(x.wc.clone().add(worldOff));
+      pieces.push({mesh:m, key:m.name + '#' + x.isl, isl:x.isl, nt:x.nt, frag:x.frag, gid: x.frag ? 'fragmento' : x.id + lado, name:nombre,
+        desc: x.frag ? '' : e.d + (esMus(file) && e.nm ? e.nm : ''), tip: x.frag ? null : (e.t || null),
+        rank:e.r, cat:e.c, filament: FILAMENTOS === 'ocultar' && x.frag, base:m.position.clone(), delta:p1.sub(p0), cur:0, target:0});
+    }
     groups = [...new Set(pieces.map(p => p.rank))].sort((a,b)=>a-b);
-    if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.mesh.name} | ${p.name} | rango ${p.rank} ${p.cat} | ${p.tris || '-'} tri${p.filament ? ' | FILAMENTO' : ''}`).join('\n'); }
+    /* capas sin piezas en este modelo: se apagan */
+    document.querySelectorAll('[data-cat]').forEach(cb => {
+      const hay = pieces.some(p => p.cat === cb.dataset.cat && !p.frag);
+      cb.disabled = !hay; cb.parentElement.style.opacity = hay ? 1 : .4;
+    });
+    if (DEBUG){ let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'position:absolute;left:8px;bottom:150px;max-height:40%;overflow:auto;margin:0;padding:8px;font-size:11px;background:#000c;color:#9f9;z-index:9;user-select:text'; document.body.append(d); } d.textContent = pieces.map(p => `${p.key} | ${p.name} | rango ${p.rank} ${p.cat} | ${p.nt} tri${p.frag ? ' | FRAGMENTO' : ''}`).join('\n'); }
     if (DEBUG) renderMarks();
     setSlider(0); $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
@@ -319,17 +398,20 @@ $('reset').addEventListener('click', () => { setSlider(0); select(null); });
 /* ---------- Capas ---------- */
 document.querySelectorAll('[data-cat]').forEach(cb => cb.addEventListener('change', () => { layerOn[cb.dataset.cat] = cb.checked; if (selected && !layerOn[selected.cat]) select(null); }));
 
-/* ---------- Selección y panel ---------- */
+/* ---------- Selección y panel (se resalta la estructura completa, no solo la isla tocada) ---------- */
 function select(p){
   selected = p; $('hint').classList.toggle('off', !!p);
-  if (DEBUG && p){ marked.has(p.mesh.name) ? marked.delete(p.mesh.name) : marked.add(p.mesh.name); renderMarks(); }
+  if (DEBUG && p){ marked.has(p.key) ? marked.delete(p.key) : marked.add(p.key); renderMarks(); }
   if (!p){ $('info').style.display='none'; focus.set(0,0,0); return; }
-  $('iName').textContent = p.name; $('iCat').textContent = CAT_LABEL[p.cat] + (DEBUG ? ' · ' + p.mesh.name : ''); $('iDesc').textContent = p.desc;
-  const t = TIPS.find(([re]) => re.test(p.name));
-  $('iTip').style.display = t ? 'block' : 'none'; if (t) $('iTipTxt').textContent = t[1];
+  $('iName').textContent = p.name; $('iCat').textContent = CAT_LABEL[p.cat] + (DEBUG ? ' · ' + p.key + ' · ' + p.nt + ' tri' : ''); $('iDesc').textContent = p.desc;
+  $('iTip').style.display = p.tip ? 'block' : 'none'; if (p.tip) $('iTipTxt').textContent = p.tip;
   $('info').style.display = 'block';
   window.track?.('laringe_estructura', {estructura: p.name});
-  if (!DEBUG) new THREE.Box3().setFromObject(p.mesh).getCenter(focus);
+  if (!DEBUG){
+    const bb = new THREE.Box3();
+    pieces.forEach(q => { if (q.gid === p.gid && q.mesh.visible) bb.expandByObject(q.mesh); });
+    if (!bb.isEmpty()) bb.getCenter(focus);
+  }
 }
 $('close').addEventListener('click', () => select(null));
 
@@ -338,7 +420,7 @@ function pick(e){
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(ptr, camera);
-  const vis = pieces.filter(p => p.mesh.visible).map(p => p.mesh);
+  const vis = pieces.filter(p => p.mesh.visible && !p.frag).map(p => p.mesh);
   const hit = ray.intersectObjects(vis, false)[0];
   return hit ? pieces.find(p => p.mesh === hit.object) : null;
 }
@@ -416,7 +498,7 @@ function runExport({text, transparent}){
     c.fillText(tx, cw / 2, ch + fh * .62);
   } else {
     const u = Math.max(ch, 1400) / 1000, pw = Math.round(680 * u), pad = 56 * u, tw = pw - 2 * pad;
-    const seen = new Map(); pieces.forEach(p => { if (p.mesh.visible && !seen.has(p.name)) seen.set(p.name, p); });
+    const seen = new Map(); pieces.forEach(p => { if (p.mesh.visible && !p.frag && !seen.has(p.name)) seen.set(p.name, p); });
     const paint = (c, X, draw) => {
       let y = pad + 40 * u;
       const put = (t, size, wt, col, gap) => {
@@ -427,8 +509,7 @@ function runExport({text, transparent}){
       if (selected){
         put(selected.name, 46, 700, '#f1eafd', 6); put(CAT_LABEL[selected.cat], 24, 400, '#b7a8d6', 28);
         put(selected.desc, 30, 400, '#f1eafd', 30);
-        const t = TIPS.find(([re]) => re.test(selected.name));
-        if (t){ put('PARA EL CANTANTE', 22, 700, '#f3c969', 6); put(t[1], 28, 400, '#fbe9b5', 20); }
+        if (selected.tip){ put('PARA EL CANTANTE', 22, 700, '#f3c969', 6); put(selected.tip, 28, 400, '#fbe9b5', 20); }
       } else {
         put('Laringe', 46, 700, '#f1eafd', 6); put('Estructuras visibles', 24, 400, '#b7a8d6', 28);
         [...seen.values()].sort((a, b) => a.rank - b.rank).forEach(p => { put(p.name, 28, 700, '#c4a0ff', 2); put(firstSentence(p.desc), 24, 400, '#e6dcf8', 22); });
@@ -461,15 +542,16 @@ function animate(){
   controls.update();
   const lastRank = stepMode && step>0 ? groups[step-1] : -1;
   const anyExp = pieces.some(q => q.cur > .03);
+  const selG = selected ? selected.gid : null, hovG = hovered ? hovered.gid : null;
   for (const p of pieces){
     p.cur += (p.target - p.cur) * (reduce ? 1 : .1);
     p.mesh.position.copy(p.base).addScaledVector(p.delta, p.cur);
     p.mesh.visible = layerOn[p.cat] && !(p.filament && anyExp && !DEBUG);
     const m = p.mesh.material;
-    const wantOp = selected && selected !== p && !DEBUG ? .12 : 1;
+    const wantOp = selG && p.gid !== selG && !DEBUG ? .12 : 1;
     m.opacity += (wantOp - m.opacity) * .2;
     m.transparent = m.opacity < .99; m.depthWrite = !m.transparent;
-    if (m.emissive) m.emissive.setHex(DEBUG && marked.has(p.mesh.name) ? 0xff5500 : DEBUG && p.filament ? 0x007a8a : p === selected ? 0x5b21b6 : p === hovered ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
+    if (m.emissive) m.emissive.setHex(DEBUG && marked.has(p.key) ? 0xff5500 : DEBUG && p.frag ? 0x007a8a : p.gid === selG ? 0x5b21b6 : p.gid === hovG ? 0x2e1065 : p.rank === lastRank ? 0x24104a : 0x000000);
   }
   if (job){ const j = job; job = null; try { runExport(j); } catch (e) { console.error(e); } }
   renderer.render(scene, camera);
@@ -479,4 +561,3 @@ loadModel($('modelSelect').value);
 </script>
 </body>
 </html>
-
