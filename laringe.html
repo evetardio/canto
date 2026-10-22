@@ -72,9 +72,9 @@ button:hover{background:#3b2970}
     <option value="larynx_with_muscles_and_ligaments.glb">Con músculos y ligamentos</option>
     <option value="anatomy_of_the_larynx.glb">Anatomía general</option>
   </select>
-  <label><input type="checkbox" data-cat="car" checked><i class="dot" style="background:#a78bfa"></i> Cartílagos</label>
-  <label><input type="checkbox" data-cat="mus" checked><i class="dot" style="background:#f472b6"></i> Músculos</label>
-  <label><input type="checkbox" data-cat="art" checked><i class="dot" style="background:#14b8a6"></i> Articulaciones</label>
+  <label><input type="checkbox" autocomplete="off" data-cat="car" checked><i class="dot" style="background:#a78bfa"></i> Cartílagos</label>
+  <label><input type="checkbox" autocomplete="off" data-cat="mus" checked><i class="dot" style="background:#f472b6"></i> Músculos</label>
+  <label><input type="checkbox" autocomplete="off" data-cat="art" checked><i class="dot" style="background:#14b8a6"></i> Articulaciones</label>
   <label><input type="checkbox" id="tr"> PNG sin fondo</label>
   <div class="dl"><button id="dl0">⬇ PNG</button><button id="dl1">⬇ PNG + texto</button></div>
 </div>
@@ -183,7 +183,7 @@ const key = new THREE.DirectionalLight(0xfff1e0, 2); key.position.set(5,10,7); s
 const fill = new THREE.DirectionalLight(0xb9a0ff, 1); fill.position.set(-6,2,-8); scene.add(fill);
 
 const $ = id => document.getElementById(id);
-const EDIT = location.search.includes('editar');
+const EDIT = location.search.includes('editar') || location.hash.includes('editar');
 const layerOn = {car:true, mus:true, art:true};
 let model = null, meshes = [], maxDim = 1, curFile = $('modelSelect').value;
 let sel = null, selPt = null, pts = [], dirty = true;
@@ -273,6 +273,7 @@ function loadModel(file){
 $('modelSelect').addEventListener('change', e => { window.track?.('laringe_modelo', {modelo: e.target.value}); loadModel(e.target.value); });
 
 /* ---------- Capas ---------- */
+document.querySelectorAll('[data-cat]').forEach(cb => { layerOn[cb.dataset.cat] = cb.checked; });
 document.querySelectorAll('[data-cat]').forEach(cb => cb.addEventListener('change', () => {
   layerOn[cb.dataset.cat] = cb.checked; if (sel && !layerOn[sel.cat]) seleccionar(null);
 }));
@@ -301,18 +302,19 @@ function pick(e){
 }
 renderer.domElement.style.cursor = EDIT ? 'crosshair' : 'grab';
 renderer.domElement.addEventListener('pointerdown', e => down = {x:e.clientX, y:e.clientY});
-renderer.domElement.addEventListener('pointerup', e => {
-  if (EDIT && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5){
+renderer.domElement.addEventListener('click', e => {
+  if (!EDIT) return;
+  if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;   /* fue un arrastre, no un clic */
+  const msg = t => { $('edMsg').textContent = t; };
+  try {
     const h = pick(e);
-    if (h){
-      const r = n => Number(n.toPrecision(5));
-      const id = $('edSel').value, arr = lista(curFile, id).slice();
-      arr.push([r(h.point.x), r(h.point.y), r(h.point.z)]);
-      puntosDe(curFile)[id] = arr; guardar(); construirPts(); edUI();
-      $('edMsg').textContent = 'Punto agregado.';
-    }
-  }
-  down = null;
+    if (!h){ msg('No tocaste el modelo: hacé clic justo sobre la laringe.'); return; }
+    const r = n => Number(n.toPrecision(5));
+    const id = $('edSel').value, arr = lista(curFile, id).slice();
+    arr.push([r(h.point.x), r(h.point.y), r(h.point.z)]);
+    puntosDe(curFile)[id] = arr; guardar(); construirPts(); edUI();
+    msg(`Punto agregado (${arr.length}). Si no lo ves, girá un poco el modelo.`);
+  } catch (err){ console.error(err); msg('Error: ' + err.message); }
 });
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); dirty = true; });
 controls.addEventListener('change', () => dirty = true);
