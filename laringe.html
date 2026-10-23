@@ -45,9 +45,6 @@ button:hover{background:#3b2970}
 .pt span{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(11,8,22,.9);border:2px solid var(--c);color:#fff;font-size:12px;font-weight:700;box-shadow:0 0 10px color-mix(in srgb,var(--c) 55%,transparent);transition:transform .15s,box-shadow .15s}
 .pt:hover span{transform:scale(1.18)}
 .pt.on span{background:var(--c);color:#0b0816;transform:scale(1.2);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 35%,transparent),0 0 20px var(--c)}
-#glow{position:absolute;left:0;top:0;pointer-events:none;z-index:2;opacity:0;transition:opacity .3s;mix-blend-mode:screen}
-#glow i{display:block;width:100%;height:100%;border-radius:50%;background:radial-gradient(circle,var(--g) 0%,transparent 66%);animation:resp 2.4s ease-in-out infinite}
-@keyframes resp{50%{transform:scale(1.14);opacity:.75}}
 
 /* Modo edición (?editar) */
 #editor{position:absolute;left:12px;bottom:12px;width:300px;padding:12px 14px;z-index:7;display:grid;gap:8px;font-size:13px}
@@ -57,7 +54,7 @@ button:hover{background:#3b2970}
 #editor p{margin:0;color:var(--mute);line-height:1.4}
 
 @media(max-width:700px){:root{--hh:50px}header{padding:0 14px}header h1{font-size:1rem}#hint{display:none}#menu{top:calc(var(--hh) + 8px);left:12px;right:12px;display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;font-size:12px}#menu select,#menu .dl{width:100%}#info{top:auto;bottom:20px;left:12px;right:12px;width:auto;transform:none;max-height:38%}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}#glow i{animation:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -75,6 +72,8 @@ button:hover{background:#3b2970}
   <label><input type="checkbox" autocomplete="off" data-cat="car" checked><i class="dot" style="background:#a78bfa"></i> Cartílagos</label>
   <label><input type="checkbox" autocomplete="off" data-cat="mus" checked><i class="dot" style="background:#f472b6"></i> Músculos</label>
   <label><input type="checkbox" autocomplete="off" data-cat="art" checked><i class="dot" style="background:#14b8a6"></i> Articulaciones</label>
+  <label><input type="checkbox" autocomplete="off" data-cat="lig" checked><i class="dot" style="background:#f3c969"></i> Ligamentos</label>
+  <label><input type="checkbox" autocomplete="off" data-cat="mem" checked><i class="dot" style="background:#38bdf8"></i> Membranas</label>
   <label><input type="checkbox" id="tr"> PNG sin fondo</label>
   <div class="dl"><button id="dl0">⬇ PNG</button><button id="dl1">⬇ PNG + texto</button></div>
 </div>
@@ -86,7 +85,6 @@ button:hover{background:#3b2970}
   <div class="tip" id="iTip"><b>Para el cantante</b><span id="iTipTxt"></span></div>
 </div>
 
-<div id="glow"><i></i></div>
 <div id="pts"></div>
 
 <div id="editor" class="glass" hidden>
@@ -116,7 +114,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const CATS = {
   car:{col:'#a78bfa', rgb:'167,139,250', label:'Cartílago / hueso'},
   mus:{col:'#f472b6', rgb:'244,114,182', label:'Músculo'},
-  art:{col:'#14b8a6', rgb:'20,184,166',  label:'Articulación'}
+  art:{col:'#14b8a6', rgb:'20,184,166',  label:'Articulación'},
+  lig:{col:'#f3c969', rgb:'243,201,105', label:'Ligamento'},
+  mem:{col:'#38bdf8', rgb:'56,189,248',  label:'Membrana'}
 };
 const DATA = [
  {id:'tiroides', cat:'car', n:'Cartílago tiroides',
@@ -170,7 +170,38 @@ const DATA = [
   t:'Es la bisagra de los cambios de tono: cuando el tiroides se inclina, las cuerdas se estiran y la nota sube.'},
  {id:'art_cricoaritenoidea', cat:'art', n:'Articulación cricoaritenoidea',
   d:'Une la base de cada aritenoides con el borde superior del cricoides. Permite que los aritenoides giren y se deslicen, abriendo o cerrando las cuerdas vocales.',
-  t:'De su movimiento depende que las cuerdas se junten bien al sonar. Un cierre parejo da una voz clara y sin esfuerzo.'}
+  t:'De su movimiento depende que las cuerdas se junten bien al sonar. Un cierre parejo da una voz clara y sin esfuerzo.'},
+
+ /* ----- LIGAMENTOS (borrador: corregí o sacá los que no estén en el modelo) ----- */
+ {id:'lig_cricotiroideo_medio', cat:'lig', n:'Ligamento cricotiroideo medio',
+  d:'Banda elástica gruesa que une, por delante, el borde superior del arco del cricoides con el borde inferior del tiroides. Es la parte central del cono elástico.',
+  t:'Su elasticidad acompaña la inclinación del tiroides cuando subís de tono. Sin tensión de más, se estira con libertad.'},
+ {id:'lig_vocal', cat:'lig', n:'Ligamento vocal',
+  d:'Es el borde superior engrosado del cono elástico. Va desde el interior del tiroides, por delante, hasta el aritenoides, por atrás. Es la base de la cuerda vocal verdadera, cubierta por el músculo y la mucosa.',
+  t:'Forma parte de la cuerda vocal que vibra al cantar. Su tensión, junto con la del músculo, determina la altura de la nota.'},
+ {id:'lig_vestibular', cat:'lig', n:'Ligamento vestibular (cuerda vocal falsa)',
+  d:'Banda fibrosa que va del tiroides al aritenoides, por encima del ligamento vocal. Forma la base del pliegue vestibular, conocido como “cuerda falsa”.',
+  t:'Las cuerdas falsas normalmente no participan al cantar. Si se aprietan, la voz se vuelve oscura y forzada.'},
+ {id:'lig_hioepiglotico', cat:'lig', n:'Ligamento hioepiglótico',
+  d:'Une la cara anterior de la epiglotis con el borde superior del hioides.',
+  t:'Conecta la epiglotis con el hioides: cuando el hioides sube, también arrastra a la epiglotis.'},
+ {id:'lig_tiroepiglotico', cat:'lig', n:'Ligamento tiroepiglótico',
+  d:'Sujeta el extremo inferior de la epiglotis a la cara interna del tiroides, justo encima de las cuerdas vocales.',
+  t:'Mantiene a la epiglotis en su lugar mientras la laringe sube y baja al cantar.'},
+ {id:'lig_cricotraqueal', cat:'lig', n:'Ligamento cricotraqueal',
+  d:'Une el borde inferior del cricoides con el primer anillo de la tráquea.',
+  t:'Une la laringe con la tráquea y permite pequeños movimientos de la laringe sobre ella.'},
+
+ /* ----- MEMBRANAS (borrador) ----- */
+ {id:'mem_tirohioidea', cat:'mem', n:'Membrana tirohioidea',
+  d:'Lámina fibroelástica que une el borde superior del tiroides con el hioides. A cada lado tiene un orificio por donde pasan vasos y nervios de la laringe.',
+  t:'Permite que la laringe suba y baje con libertad respecto del hioides. Una laringe “atrapada” es señal de tensión innecesaria.'},
+ {id:'mem_cuadrangular', cat:'mem', n:'Membrana cuadrangular',
+  d:'Lámina fibrosa que va desde la epiglotis hasta los aritenoides. Su borde inferior forma el ligamento vestibular y su borde superior, el pliegue aritenoepiglótico.',
+  t:'Sostiene las paredes de la entrada de la laringe, el espacio por donde sube el sonido hacia el tracto vocal.'},
+ {id:'mem_cono_elastico', cat:'mem', n:'Cono elástico (membrana cricovocal)',
+  d:'Membrana elástica que sube desde el borde superior del cricoides y termina en el ligamento vocal. Sostiene a la cuerda vocal desde abajo.',
+  t:'Su elasticidad ayuda a que las cuerdas recuperen su posición después de cada vibración.'}
 ];
 DATA.forEach((d, i) => d.num = i + 1);
 
@@ -212,13 +243,13 @@ const fill = new THREE.DirectionalLight(0xb9a0ff, 1); fill.position.set(-6,2,-8)
 
 const $ = id => document.getElementById(id);
 const EDIT = location.search.includes('editar') || location.hash.includes('editar');
-const layerOn = {car:true, mus:true, art:true};
+const layerOn = {car:true, mus:true, art:true, lig:true, mem:true};
 let model = null, meshes = [], maxDim = 1, curFile = $('modelSelect').value;
 let sel = null, selPt = null, pts = [], dirty = true;
 
 /* ---------- Puntos de cada estructura (ya incluidos en el código) ----------
    Se marcan en el modo edición (?editar) y se pegan acá. Una entrada por modelo. */
-const PUNTOS_BASE = {"larynx_with_muscles_and_ligaments.glb":{"hioides":[[0,18.697,16.585]],"asta":[[11.627,-9.804,-9.3632]],"epiglotis":[[-0.16756,22.007,3.4]],"aritenoides":[[2.5263,2.525,-7.0178],[-2.2054,3.3931,-7.5845]],"cricoides":[[0.13255,-8.2626,-12.297]],"corniculados":[[3.4862,5.7535,-6.9592],[-3.0737,5.7899,-7.2411]],"traquea":[[0.76477,-24.721,-3.7175]],"tiroides":[[0.43695,-2.3168,9.2607]]}};
+const PUNTOS_BASE = {"larynx_with_muscles_and_ligaments.glb":{"hioides":[[0,18.697,16.585]],"asta":[[11.627,-9.804,-9.3632]],"epiglotis":[[-0.16756,22.007,3.4]],"aritenoides":[[2.5263,2.525,-7.0178],[-2.2054,3.3931,-7.5845]],"cricoides":[[0.13255,-8.2626,-12.297]],"corniculados":[[3.4862,5.7535,-6.9592],[-3.0737,5.7899,-7.2411]],"traquea":[[0.76477,-24.721,-3.7175]],"tiroides":[[0.43695,-2.3168,9.2607]],"cricotiroideo":[[-7.9248,-11.322,-0.27209]],"cricoaritenoideo_post":[[-4.2438,-5.3954,-11.588]],"cricoaritenoideo_lat":[[7.652,-3.7192,-4.7666]],"aritenoideos":[[-1.8349,1.2734,-9.4924]],"tiroaritenoideo":[[1.805,-0.80877,1.6996]],"art_cricotiroidea":[[-10.007,-11.543,-8.8356]],"art_cricoaritenoidea":[[1.8131,-1.3777,-8.0974]],"cuneiformes":[[3.3518,5.6108,-2.6273]]}};
 let PUNTOS = JSON.parse(JSON.stringify(PUNTOS_BASE));
 const LS = 'eve:puntos-laringe-v2';
 async function cargarPuntos(){
@@ -243,7 +274,7 @@ function construirPts(){
   dirty = true;
 }
 const rc = new THREE.Raycaster(), v3 = new THREE.Vector3(), dir = new THREE.Vector3(), nrm = new THREE.Vector3();
-let selMeshes = new Set(), ultimaOcl = 0;
+let ultimaOcl = 0;
 function oclusion(){
   const tol = maxDim * .03, vis = meshes.filter(m => m.visible), lados = vis.map(m => m.material.side);
   vis.forEach(m => { m.material.side = THREE.DoubleSide; });   /* así también se detectan las superficies vistas "por detrás" */
@@ -251,13 +282,10 @@ function oclusion(){
     dir.copy(p.pos).sub(camera.position); const dist = dir.length(); dir.normalize();
     rc.set(camera.position, dir); rc.near = 0; rc.far = dist + tol;
     const h = rc.intersectObjects(vis, false)[0];
-    p.hitMesh = null;
     if (!h){ p.occ = false; continue; }
     if (h.distance < dist - tol){ p.occ = true; continue; }          /* hay otra pieza delante */
-    p.hitMesh = h.object;
     nrm.copy(h.face.normal).transformDirection(h.object.matrixWorld);
     p.occ = dir.dot(nrm) > 0.05;                                       /* la superficie del punto mira para otro lado */
-    if (sel && p.item === sel && !p.occ && p.hitMesh) selMeshes.add(p.hitMesh);
   }
   vis.forEach((m, i) => { m.material.side = lados[i]; });
 }
@@ -271,14 +299,6 @@ function actualizarPts(){
     p.el.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`;
     p.el.style.opacity = p.show ? 1 : 0; p.el.style.pointerEvents = p.show ? 'auto' : 'none';
   }
-  const g = $('glow');
-  if (selPt && selPt.show){
-    const d = camera.position.distanceTo(selPt.pos);
-    const px = maxDim * .3 / (2 * d * Math.tan(camera.fov * Math.PI / 360)) * h;
-    g.style.width = g.style.height = px + 'px';
-    g.style.transform = `translate(${selPt.x - px / 2}px,${selPt.y - px / 2}px)`;
-    g.style.opacity = 1;
-  } else g.style.opacity = 0;
 }
 
 /* ---------- Islas: separa cada malla en partes desconectadas ---------- */
@@ -377,9 +397,7 @@ function seleccionar(item, pt){
   if (selPt) selPt.el.classList.remove('on');
   sel = item || null; selPt = item ? pt : null; if (selPt) selPt.el.classList.add('on');
   $('hint').classList.toggle('off', !!item);
-  selMeshes = new Set(); if (pt && pt.hitMesh) selMeshes.add(pt.hitMesh); dirty = true;
   if (!item){ $('info').style.display = 'none'; return; }
-  $('glow').style.setProperty('--g', `rgba(${CATS[item.cat].rgb},.85)`);
   $('iName').textContent = item.n; $('iCat').textContent = CATS[item.cat].label; $('iDesc').textContent = item.d;
   $('iTip').style.display = item.t ? 'block' : 'none'; $('iTipTxt').textContent = item.t || '';
   $('info').style.display = 'block';
@@ -549,11 +567,9 @@ function animate(){
   controls.update(); camera.updateMatrixWorld();
   const ahora = performance.now();
   if (dirty && ahora - ultimaOcl > 70){ dirty = false; ultimaOcl = ahora; if (pts.length) oclusion(); }
-  const t = ahora / 1000;
-  for (const m of meshes){
+  for (const m of meshes){   /* solo la herramienta de edición tiñe piezas (músculos marcados) */
     const mat = m.material; if (!mat.emissive) continue;
-    if (sel && selMeshes.has(m)){ mat.emissive.set(CATS[sel.cat].col); mat.emissiveIntensity = .4 + .25 * Math.sin(t * 3.2); }
-    else if (EDIT && $('edModo').value === 'musculo' && m.userData.mus){ mat.emissive.set('#f472b6'); mat.emissiveIntensity = .45; }
+    if (EDIT && $('edModo').value === 'musculo' && m.userData.mus){ mat.emissive.set('#f472b6'); mat.emissiveIntensity = .45; }
     else mat.emissiveIntensity = 0;
   }
   if (job){ const j = job; job = null; try { runExport(j); } catch (e) { console.error(e); } }
