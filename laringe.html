@@ -90,9 +90,10 @@ button:hover{background:#3b2970}
 <div id="pts"></div>
 
 <div id="editor" class="glass" hidden>
-  <p><b style="color:var(--ink)">Modo edición.</b> 1) Elegí la estructura. 2) Tocá el modelo donde va el punto (en estructuras de a pares podés poner uno a cada lado).</p>
+  <p><b style="color:var(--ink)">Modo edición.</b> 1) Elegí la estructura. 2) Tocá el modelo donde va el punto (en estructuras de a pares podés poner uno a cada lado). Para borrar uno: tocá ese punto y apretá “Borrar el punto marcado”.</p>
   <select id="edSel" aria-label="Estructura"></select>
-  <div class="row"><button id="edQuitar">Borrar puntos de esta estructura</button></div>
+  <div class="row"><button id="edUno">Borrar el punto marcado</button></div>
+  <div class="row"><button id="edQuitar">Borrar todos los de esta estructura</button></div>
   <div class="row"><button id="edDesc">⬇ Descargar puntos</button><button id="edCopiar">Copiar</button></div>
   <p id="edMsg"></p>
 </div>
@@ -202,14 +203,14 @@ const guardar = () => { try { localStorage.setItem(LS, JSON.stringify(PUNTOS)); 
 /* ---------- Marcadores ---------- */
 function construirPts(){
   $('pts').innerHTML = ''; pts = []; selPt = null;
-  for (const d of DATA) for (const p of lista(curFile, d.id)){
+  for (const d of DATA) lista(curFile, d.id).forEach((p, i) => {
     const el = document.createElement('button');
     el.className = 'pt'; el.style.setProperty('--c', CATS[d.cat].col); el.setAttribute('aria-label', d.n);
     el.innerHTML = `<span>${d.num}</span>`;
-    const o = {el, item:d, pos:new THREE.Vector3(p[0], p[1], p[2]), occ:false, show:false};
-    el.addEventListener('click', () => seleccionar(d, o));
+    const o = {el, item:d, idx:i, pos:new THREE.Vector3(p[0], p[1], p[2]), occ:false, show:false};
+    el.addEventListener('click', () => { if (EDIT) $('edSel').value = d.id; seleccionar(d, o); });
     $('pts').append(el); pts.push(o);
-  }
+  });
   if (sel){ const o = pts.find(q => q.item === sel); if (o){ selPt = o; o.el.classList.add('on'); } else seleccionar(null); }
   dirty = true;
 }
@@ -328,6 +329,12 @@ function edUI(){
   $('edSel').value = cur;
 }
 $('edQuitar').addEventListener('click', () => { delete puntosDe(curFile)[$('edSel').value]; guardar(); construirPts(); edUI(); $('edMsg').textContent = 'Puntos borrados.'; });
+$('edUno').addEventListener('click', () => {
+  if (!selPt){ $('edMsg').textContent = 'Tocá primero el punto que querés borrar.'; return; }
+  const id = selPt.item.id, arr = lista(curFile, id).slice(); arr.splice(selPt.idx, 1);
+  if (arr.length) puntosDe(curFile)[id] = arr; else delete puntosDe(curFile)[id];
+  seleccionar(null); guardar(); construirPts(); edUI(); $('edMsg').textContent = 'Punto borrado.';
+});
 const jsonPuntos = () => JSON.stringify(PUNTOS, null, 1);
 $('edDesc').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([jsonPuntos()], {type:'application/json'}));
