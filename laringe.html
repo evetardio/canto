@@ -91,10 +91,12 @@ button:hover{background:#3b2970}
 
 <div id="editor" class="glass" hidden>
   <p><b style="color:var(--ink)">Modo edición.</b> 1) Elegí la estructura. 2) Tocá el modelo donde va el punto (en estructuras de a pares podés poner uno a cada lado). Para borrar uno: tocá ese punto y apretá “Borrar el punto marcado”.</p>
+  <select id="edModo" aria-label="Herramienta"><option value="punto">Herramienta: ubicar puntos</option><option value="musculo">Herramienta: marcar piezas de músculo</option></select>
   <select id="edSel" aria-label="Estructura"></select>
   <div class="row"><button id="edUno">Borrar el punto marcado</button></div>
   <div class="row"><button id="edQuitar">Borrar todos los de esta estructura</button></div>
   <div class="row"><button id="edDesc">⬇ Descargar puntos</button><button id="edCopiar">Copiar</button></div>
+  <div class="row"><button id="edReset">Restaurar los puntos del archivo</button></div>
   <p id="edMsg"></p>
 </div>
 <div id="load">Cargando modelo…</div>
@@ -143,7 +145,32 @@ const DATA = [
   t:'Mantienen firme el borde de la entrada de la laringe, por donde pasan el aire y el sonido hacia el tracto vocal.'},
  {id:'traquea', cat:'car', n:'Tráquea',
   d:'Tubo formado por anillos de cartílago en forma de C, unidos por tejido fibroso, que conduce el aire hacia y desde los pulmones. La laringe se apoya en su extremo superior.',
-  t:'Su tracción hacia abajo ayuda a mantener la laringe estable. Es el vínculo con el apoyo respiratorio.'}
+  t:'Su tracción hacia abajo ayuda a mantener la laringe estable. Es el vínculo con el apoyo respiratorio.'},
+
+ /* ----- MÚSCULOS (borrador: corregí nombres y textos a gusto) ----- */
+ {id:'cricotiroideo', cat:'mus', n:'Músculo cricotiroideo',
+  d:'Va desde el arco del cricoides hasta el tiroides, por delante. Al contraerse acerca ambos cartílagos y hace que el tiroides se incline hacia adelante, lo que estira y alarga las cuerdas vocales.',
+  t:'Es el músculo de los agudos. Si se fatiga, la nota alta se vuelve tensa o se quiebra: vale el calentamiento con sirenas suaves.'},
+ {id:'cricoaritenoideo_post', cat:'mus', n:'Músculo cricoaritenoideo posterior',
+  d:'Nace en la cara posterior del cricoides y se inserta en el aritenoides. Al contraerse hace girar los aritenoides hacia afuera y abre las cuerdas vocales. Es el único músculo que las abre.',
+  t:'Es el que abre las cuerdas para tomar aire. Una inspiración tranquila antes de cantar lo deja trabajar sin tensión.'},
+ {id:'cricoaritenoideo_lat', cat:'mus', n:'Músculo cricoaritenoideo lateral',
+  d:'Va desde el borde lateral del cricoides hasta el aritenoides. Al contraerse hace girar los aritenoides hacia adentro y acerca las cuerdas vocales, cerrando la parte anterior de la glotis.',
+  t:'Participa en el cierre de las cuerdas al emitir sonido. Con poco cierre la voz sale soplada; con demasiado, apretada.'},
+ {id:'aritenoideos', cat:'mus', n:'Músculos aritenoideos (transverso y oblicuos)',
+  d:'Unen los dos aritenoides por su cara posterior. Al contraerse los acercan entre sí y cierran la parte posterior de la glotis.',
+  t:'Completan el cierre de las cuerdas por atrás. Si falta, queda un pequeño espacio por donde se escapa aire y la voz suena velada.'},
+ {id:'tiroaritenoideo', cat:'mus', n:'Músculo tiroaritenoideo (músculo vocal)',
+  d:'Va desde la cara interna del tiroides, por adelante, hasta los aritenoides. Forma el cuerpo de la cuerda vocal. Al contraerse acorta y engrosa la cuerda, la relaja y colabora en el cierre de la glotis.',
+  t:'Es el músculo de la cuerda vocal en sí: da cuerpo y densidad a la voz, sobre todo en el registro grave.'},
+
+ /* ----- ARTICULACIONES (borrador) ----- */
+ {id:'art_cricotiroidea', cat:'art', n:'Articulación cricotiroidea',
+  d:'Une el asta inferior del tiroides con el cricoides, a cada lado. Permite que el tiroides se incline hacia adelante y hacia atrás sobre el cricoides, lo que cambia la tensión de las cuerdas.',
+  t:'Es la bisagra de los cambios de tono: cuando el tiroides se inclina, las cuerdas se estiran y la nota sube.'},
+ {id:'art_cricoaritenoidea', cat:'art', n:'Articulación cricoaritenoidea',
+  d:'Une la base de cada aritenoides con el borde superior del cricoides. Permite que los aritenoides giren y se deslicen, abriendo o cerrando las cuerdas vocales.',
+  t:'De su movimiento depende que las cuerdas se junten bien al sonar. Un cierre parejo da una voz clara y sin esfuerzo.'}
 ];
 DATA.forEach((d, i) => d.num = i + 1);
 
@@ -189,11 +216,12 @@ const layerOn = {car:true, mus:true, art:true};
 let model = null, meshes = [], maxDim = 1, curFile = $('modelSelect').value;
 let sel = null, selPt = null, pts = [], dirty = true;
 
-/* ---------- Puntos: se leen de puntos_laringe.json (uno por modelo) ---------- */
-let PUNTOS = {};
-const LS = 'eve:puntos-laringe';
+/* ---------- Puntos de cada estructura (ya incluidos en el código) ----------
+   Se marcan en el modo edición (?editar) y se pegan acá. Una entrada por modelo. */
+const PUNTOS_BASE = {"larynx_with_muscles_and_ligaments.glb":{"hioides":[[0,18.697,16.585]],"asta":[[11.627,-9.804,-9.3632]],"epiglotis":[[-0.16756,22.007,3.4]],"aritenoides":[[2.5263,2.525,-7.0178],[-2.2054,3.3931,-7.5845]],"cricoides":[[0.13255,-8.2626,-12.297]],"corniculados":[[3.4862,5.7535,-6.9592],[-3.0737,5.7899,-7.2411]],"traquea":[[0.76477,-24.721,-3.7175]],"tiroides":[[0.43695,-2.3168,9.2607]]}};
+let PUNTOS = JSON.parse(JSON.stringify(PUNTOS_BASE));
+const LS = 'eve:puntos-laringe-v2';
 async function cargarPuntos(){
-  try { const r = await fetch('puntos_laringe.json', {cache: EDIT ? 'no-store' : 'default'}); if (r.ok) PUNTOS = await r.json(); } catch (e) {}
   if (EDIT){ try { Object.assign(PUNTOS, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {} }
 }
 const puntosDe = f => PUNTOS[f] || (PUNTOS[f] = {});
@@ -214,15 +242,24 @@ function construirPts(){
   if (sel){ const o = pts.find(q => q.item === sel); if (o){ selPt = o; o.el.classList.add('on'); } else seleccionar(null); }
   dirty = true;
 }
-const rc = new THREE.Raycaster(), v3 = new THREE.Vector3(), dir = new THREE.Vector3();
+const rc = new THREE.Raycaster(), v3 = new THREE.Vector3(), dir = new THREE.Vector3(), nrm = new THREE.Vector3();
+let selMeshes = new Set(), ultimaOcl = 0;
 function oclusion(){
-  const tol = maxDim * .03;
+  const tol = maxDim * .03, vis = meshes.filter(m => m.visible), lados = vis.map(m => m.material.side);
+  vis.forEach(m => { m.material.side = THREE.DoubleSide; });   /* así también se detectan las superficies vistas "por detrás" */
   for (const p of pts){
     dir.copy(p.pos).sub(camera.position); const dist = dir.length(); dir.normalize();
-    rc.set(camera.position, dir); rc.near = 0; rc.far = dist;
-    const h = rc.intersectObjects(meshes, false)[0];
-    p.occ = !!h && h.distance < dist - tol;
+    rc.set(camera.position, dir); rc.near = 0; rc.far = dist + tol;
+    const h = rc.intersectObjects(vis, false)[0];
+    p.hitMesh = null;
+    if (!h){ p.occ = false; continue; }
+    if (h.distance < dist - tol){ p.occ = true; continue; }          /* hay otra pieza delante */
+    p.hitMesh = h.object;
+    nrm.copy(h.face.normal).transformDirection(h.object.matrixWorld);
+    p.occ = dir.dot(nrm) > 0.05;                                       /* la superficie del punto mira para otro lado */
+    if (sel && p.item === sel && !p.occ && p.hitMesh) selMeshes.add(p.hitMesh);
   }
+  vis.forEach((m, i) => { m.material.side = lados[i]; });
 }
 function actualizarPts(){
   const w = innerWidth, h = innerHeight;
@@ -244,6 +281,55 @@ function actualizarPts(){
   } else g.style.opacity = 0;
 }
 
+/* ---------- Islas: separa cada malla en partes desconectadas ---------- */
+function splitIslands(root){
+  const list = [];
+  root.traverse(o => { if (o.isMesh && !o.isSkinnedMesh && !Array.isArray(o.material) && o.geometry.attributes.position) list.push(o); });
+  const comp = ['getX','getY','getZ','getW'];
+  for (const m of list){
+    const g = m.geometry, pos = g.attributes.position, n = pos.count;
+    const ix = g.index ? g.index.array : null, nt = Math.floor((ix ? ix.length : n) / 3);
+    if (nt < 2) continue;
+    g.computeBoundingBox();
+    const paso = Math.max(g.boundingBox.getSize(new THREE.Vector3()).length() * 1e-5, 1e-9);
+    const ids = new Map(), weld = new Int32Array(n);
+    for (let i = 0; i < n; i++){
+      const k = Math.round(pos.getX(i)/paso) + ',' + Math.round(pos.getY(i)/paso) + ',' + Math.round(pos.getZ(i)/paso);
+      let w = ids.get(k); if (w === undefined){ w = ids.size; ids.set(k, w); } weld[i] = w;
+    }
+    const par = new Int32Array(ids.size).map((_, i) => i);
+    const find = a => { while (par[a] !== a){ par[a] = par[par[a]]; a = par[a]; } return a; };
+    const v = (t, c) => ix ? ix[t*3 + c] : t*3 + c;
+    for (let t = 0; t < nt; t++){
+      const ra = find(weld[v(t,0)]);
+      par[find(weld[v(t,1)])] = ra;
+      par[find(weld[v(t,2)])] = ra;
+    }
+    const islas = new Map();
+    for (let t = 0; t < nt; t++){ const r = find(weld[v(t,0)]); if (!islas.has(r)) islas.set(r, []); islas.get(r).push(t); }
+    if (islas.size < 2) continue;
+    for (const tris of islas.values()){
+      const remap = new Map(), order = [], newIdx = [];
+      for (const t of tris) for (let c = 0; c < 3; c++){
+        const o = v(t,c); let q = remap.get(o);
+        if (q === undefined){ q = order.length; remap.set(o, q); order.push(o); }
+        newIdx.push(q);
+      }
+      const ng = new THREE.BufferGeometry();
+      for (const [nombre, att] of Object.entries(g.attributes)){
+        const sz = att.itemSize, arr = new Float32Array(order.length * sz);
+        order.forEach((o, i) => { for (let k = 0; k < sz; k++) arr[i*sz + k] = att[comp[k]](o); });
+        ng.setAttribute(nombre, new THREE.BufferAttribute(arr, sz));
+      }
+      ng.setIndex(newIdx);
+      const nm = new THREE.Mesh(ng, m.material);
+      nm.name = m.name; nm.position.copy(m.position); nm.quaternion.copy(m.quaternion); nm.scale.copy(m.scale);
+      m.parent.add(nm);
+    }
+    m.parent.remove(m);
+  }
+}
+
 /* ---------- Carga del modelo ---------- */
 const loader = new GLTFLoader();
 function loadModel(file){
@@ -251,7 +337,7 @@ function loadModel(file){
   if (model){ scene.remove(model); model = null; }
   meshes = []; pts = []; $('pts').innerHTML = ''; seleccionar(null);
   loader.load(file, gltf => {
-    model = gltf.scene;
+    model = gltf.scene; splitIslands(model);
     let box = new THREE.Box3().setFromObject(model);
     model.position.sub(box.getCenter(new THREE.Vector3()));
     scene.add(model); model.updateMatrixWorld(true);
@@ -267,16 +353,23 @@ function loadModel(file){
       if (RECOLOR.includes(file)) recolor(m.material, classify(NOMBRES_MODELO[m.name]));
       meshes.push(m);
     });
-    construirPts(); edUI();
+    /* músculos: por color rojizo, o según la lista marcada a mano en el modo edición */
+    const man = puntosDe(file)._musculos;
+    meshes.forEach((m, i) => {
+      const c = m.material.color, rojo = !!c && c.r > .25 && c.r > c.g * 1.6 && c.r > c.b * 1.3;
+      m.userData.mus = Array.isArray(man) ? man.includes(i) : rojo;
+    });
+    aplicarCapas(); construirPts(); edUI();
     $('load').style.display = 'none';
   }, undefined, err => { console.error(err); $('load').textContent = 'No se pudo cargar el modelo. Revisá que el archivo .glb esté junto a este HTML.'; });
 }
 $('modelSelect').addEventListener('change', e => { window.track?.('laringe_modelo', {modelo: e.target.value}); loadModel(e.target.value); });
 
 /* ---------- Capas ---------- */
+function aplicarCapas(){ meshes.forEach(m => { m.visible = !(m.userData.mus && !layerOn.mus); }); dirty = true; }
 document.querySelectorAll('[data-cat]').forEach(cb => { layerOn[cb.dataset.cat] = cb.checked; });
 document.querySelectorAll('[data-cat]').forEach(cb => cb.addEventListener('change', () => {
-  layerOn[cb.dataset.cat] = cb.checked; if (sel && !layerOn[sel.cat]) seleccionar(null);
+  layerOn[cb.dataset.cat] = cb.checked; if (sel && !layerOn[sel.cat]) seleccionar(null); aplicarCapas();
 }));
 
 /* ---------- Selección y cartel ---------- */
@@ -284,6 +377,7 @@ function seleccionar(item, pt){
   if (selPt) selPt.el.classList.remove('on');
   sel = item || null; selPt = item ? pt : null; if (selPt) selPt.el.classList.add('on');
   $('hint').classList.toggle('off', !!item);
+  selMeshes = new Set(); if (pt && pt.hitMesh) selMeshes.add(pt.hitMesh); dirty = true;
   if (!item){ $('info').style.display = 'none'; return; }
   $('glow').style.setProperty('--g', `rgba(${CATS[item.cat].rgb},.85)`);
   $('iName').textContent = item.n; $('iCat').textContent = CATS[item.cat].label; $('iDesc').textContent = item.d;
@@ -299,7 +393,7 @@ function pick(e){
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  return ray.intersectObjects(meshes, false)[0] || null;
+  return ray.intersectObjects(meshes.filter(m => m.visible), false)[0] || null;
 }
 renderer.domElement.style.cursor = EDIT ? 'crosshair' : 'grab';
 renderer.domElement.addEventListener('pointerdown', e => down = {x:e.clientX, y:e.clientY});
@@ -310,6 +404,17 @@ renderer.domElement.addEventListener('click', e => {
   try {
     const h = pick(e);
     if (!h){ msg('No tocaste el modelo: hacé clic justo sobre la laringe.'); return; }
+    if ($('edModo').value === 'musculo'){
+      const i = meshes.indexOf(h.object);
+      let arr = puntosDe(curFile)._musculos;
+      if (!Array.isArray(arr)) arr = meshes.map((m, k) => m.userData.mus ? k : -1).filter(k => k >= 0);
+      arr = arr.includes(i) ? arr.filter(k => k !== i) : [...arr, i];
+      puntosDe(curFile)._musculos = arr; guardar();
+      meshes.forEach((m, k) => { m.userData.mus = arr.includes(k); });
+      aplicarCapas();
+      msg(arr.includes(i) ? 'Pieza marcada como músculo (se ve rosada).' : 'Pieza desmarcada: ya no es músculo.');
+      return;
+    }
     const r = n => Number(n.toPrecision(5));
     const id = $('edSel').value, arr = lista(curFile, id).slice();
     arr.push([r(h.point.x), r(h.point.y), r(h.point.z)]);
@@ -335,11 +440,12 @@ $('edUno').addEventListener('click', () => {
   if (arr.length) puntosDe(curFile)[id] = arr; else delete puntosDe(curFile)[id];
   seleccionar(null); guardar(); construirPts(); edUI(); $('edMsg').textContent = 'Punto borrado.';
 });
+$('edReset').addEventListener('click', () => { try { localStorage.removeItem(LS); } catch (e) {} location.reload(); });
 const jsonPuntos = () => JSON.stringify(PUNTOS, null, 1);
 $('edDesc').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([jsonPuntos()], {type:'application/json'}));
   a.download = 'puntos_laringe.json'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  $('edMsg').textContent = 'Descargado. Subí ese archivo a GitHub junto a laringe.html.';
+  $('edMsg').textContent = 'Descargado. Pasámelo y lo dejo dentro de laringe.html.';
 });
 $('edCopiar').addEventListener('click', () => { navigator.clipboard.writeText(jsonPuntos()).then(() => $('edMsg').textContent = 'Copiado.', () => $('edMsg').textContent = 'No se pudo copiar: usá Descargar.'); });
 
@@ -440,11 +546,19 @@ $('dl1').addEventListener('click', () => { window.track?.('laringe_descargar_png
 /* ---------- Bucle ---------- */
 function animate(){
   requestAnimationFrame(animate);
-  controls.update();
-  if (dirty){ dirty = false; if (pts.length) oclusion(); }
-  actualizarPts();
+  controls.update(); camera.updateMatrixWorld();
+  const ahora = performance.now();
+  if (dirty && ahora - ultimaOcl > 70){ dirty = false; ultimaOcl = ahora; if (pts.length) oclusion(); }
+  const t = ahora / 1000;
+  for (const m of meshes){
+    const mat = m.material; if (!mat.emissive) continue;
+    if (sel && selMeshes.has(m)){ mat.emissive.set(CATS[sel.cat].col); mat.emissiveIntensity = .4 + .25 * Math.sin(t * 3.2); }
+    else if (EDIT && $('edModo').value === 'musculo' && m.userData.mus){ mat.emissive.set('#f472b6'); mat.emissiveIntensity = .45; }
+    else mat.emissiveIntensity = 0;
+  }
   if (job){ const j = job; job = null; try { runExport(j); } catch (e) { console.error(e); } }
   renderer.render(scene, camera);
+  actualizarPts();
 }
 animate();
 cargarPuntos().then(() => loadModel($('modelSelect').value));
